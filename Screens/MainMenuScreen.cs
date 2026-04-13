@@ -9,6 +9,7 @@ public sealed class MainMenuScreen : IScreen
 
     public void Update(GameTime gameTime)
     {
+        // TODO NEXT: Move main menu navigation out of Game1.Menu and into this screen.
     }
 
     public void Draw(SpriteBatch spriteBatch)

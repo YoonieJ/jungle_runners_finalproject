@@ -9,6 +9,7 @@ public sealed class StageSelectScreen : IScreen
 
     public void Update(GameTime gameTime)
     {
+        // TODO NEXT: Read saved StageProgress here so locked/completed stages and best scores are visible.
     }
 
     public void Draw(SpriteBatch spriteBatch)

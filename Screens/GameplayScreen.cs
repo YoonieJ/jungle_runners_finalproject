@@ -10,6 +10,7 @@ public sealed class GameplayScreen : IScreen
 
     public void Update(GameTime gameTime)
     {
+        // TODO NEXT: Own StartRun/UpdatePlaying behavior here, using Player, Stage, WorldScroller, and components.
         Player.Update(gameTime);
     }
 

@@ -1,0 +1,19 @@
+TODO: Turn the current Game1/Game1.Menu prototype into the screen-based structure that already exists in Screens, Core, Rendering, Entities, and Components.
+
+TODO: Finish the login flow. Main menu currently stores a user id/password, but there is no text entry, password checking, or visible password field.
+
+TODO: Build the real settings flow. Difficulty, sound, and view mode are saved in UserProfile, but only sound/view toggles are usable right now.
+
+TODO: Move gameplay state into GameplayScreen, Player, Entity, and component classes instead of keeping most run logic as fields on Game1.
+
+TODO: Move front-view and top-view drawing into FrontViewRenderer and TopViewRenderer, then replace rectangle placeholders with sprite/content assets.
+
+TODO: Replace simple tile proximity collision in Game1.Menu with ColliderComponent/CollisionHelper-based checks for player, hazards, projectiles, and pickups.
+
+TODO: Make StageFactory more intentional. Add data-driven or hand-authored layouts, apply difficulty to hazards/rewards, and unlock later stages from saved progress.
+
+TODO: Implement audio feedback through AudioManager: menu selection, jump, collect, damage, stage clear, and game over.
+
+TODO: Improve save/progression polish: prevent unlimited duplicate score entries, unlock next stages, display best scores/stars, and persist changed settings immediately.
+
+TODO: Add visual polish and juice after the systems are wired: player animation states, item/hazard sprites, background layers, hit flashes, and boss behavior for stage 3.

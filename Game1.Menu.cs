@@ -42,6 +42,8 @@ public partial class Game1
 
     private void UpdateMainMenu(KeyboardState keyboard)
     {
+        // TODO NEXT: Finish the login/settings menu: handle typing into UserId/Password,
+        // validate returning users, and expose difficulty instead of only toggling sound.
         if (IsNewKeyPress(keyboard, Keys.Down))
         {
             _mainMenuSelection = (_mainMenuSelection + 1) % _mainMenuOptions.Length;
@@ -221,6 +223,8 @@ public partial class Game1
 
     private void DrawFrontView()
     {
+        // TODO NEXT: Move this placeholder rectangle rendering into FrontViewRenderer and
+        // draw real sprites/content assets through AssetManager.
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, WindowWidth, WindowHeight), new Color(18, 74, 56));
         DrawFrontLanes();
 
@@ -280,6 +284,7 @@ public partial class Game1
 
     private void StartRun()
     {
+        // TODO NEXT: Apply selected difficulty to stage generation, lives, scoring targets, and hazard speed.
         _activeStage = _stages[_selectedStage];
         _activeStageData = _stageFactory.Create(_activeStage);
         _segments = _activeStageData.Segments;
@@ -393,6 +398,7 @@ public partial class Game1
 
     private void SaveStageProgress()
     {
+        // TODO NEXT: Unlock the next stage on clear and cap or summarize score history so saves do not grow forever.
         EnsureCurrentUser();
 
         if (!_currentUser!.StageProgress.TryGetValue(_activeStage.Number, out StageProgress? progress))
@@ -457,6 +463,8 @@ public partial class Game1
 
     private void ResolveGridInteractions()
     {
+        // TODO NEXT: Replace screen-x proximity checks with ColliderComponent/CollisionHelper so player,
+        // item, projectile, obstacle, and boss behavior all use the same collision path.
         foreach (Tile tile in _activeStageData.World.AllTiles)
         {
             if (!tile.HasContent || tile.Row != _playerRow)

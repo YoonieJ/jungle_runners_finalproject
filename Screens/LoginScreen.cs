@@ -10,6 +10,7 @@ public sealed class LoginScreen : IScreen
 
     public void Update(GameTime gameTime)
     {
+        // TODO NEXT: Move the user id/password input and validation currently implied by Game1 into this screen.
     }
 
     public void Draw(SpriteBatch spriteBatch)

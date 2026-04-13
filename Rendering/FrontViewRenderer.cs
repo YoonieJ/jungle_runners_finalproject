@@ -7,5 +7,6 @@ public sealed class FrontViewRenderer : IWorldRenderer
 {
     public void Draw(SpriteBatch spriteBatch, GridWorld world, Rectangle viewport)
     {
+        // TODO NEXT: Move DrawFrontView/DrawFrontTile logic here and swap color blocks for stage/player sprites.
     }
 }

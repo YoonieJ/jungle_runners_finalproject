@@ -7,5 +7,6 @@ public sealed class TopViewRenderer : IWorldRenderer
 {
     public void Draw(SpriteBatch spriteBatch, GridWorld world, Rectangle viewport)
     {
+        // TODO NEXT: Move DrawTopView/DrawTopGrid logic here so both camera modes share the same world data.
     }
 }

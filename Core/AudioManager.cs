@@ -13,5 +13,6 @@ public sealed class AudioManager
 
     public void StopAll()
     {
+        // TODO NEXT: Stop active music and looping effects after SoundEffect/Song instances are wired in.
     }
 }
