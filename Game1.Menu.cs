@@ -46,7 +46,7 @@ public partial class Game1
     // Handles main menu navigation, user profile creation, sound toggling, and logout.
     private void UpdateMainMenu(KeyboardState keyboard)
     {
-        // TODO NEXT: Finish the login/settings menu: handle typing into UserId
+        // TODO: Finish the login/settings menu: handle typing into UserId
         // and expose difficulty instead of only toggling sound.
         if (IsNewKeyPress(keyboard, Keys.Down))
         {
@@ -233,7 +233,7 @@ public partial class Game1
     // Draws the side-view prototype using colored rectangles for lanes, contents, and the player.
     private void DrawFrontView()
     {
-        // TODO NEXT: Move this placeholder rectangle rendering into FrontViewRenderer and
+        // TODO: Move this placeholder rectangle rendering into FrontViewRenderer and
         // draw real sprites/content assets through AssetManager.
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, WindowWidth, WindowHeight), new Color(18, 74, 56));
         DrawFrontLanes();
@@ -298,7 +298,7 @@ public partial class Game1
     // Resets run state and builds the selected stage for a fresh attempt.
     private void StartRun()
     {
-        // TODO NEXT: Apply selected difficulty to stage generation, lives, scoring targets, and hazard speed.
+        // TODO: Apply selected difficulty to stage generation, lives, scoring targets, and hazard speed.
         _activeStage = _stages[_selectedStage];
         _activeStageData = _stageFactory.Create(_activeStage);
         _segments = _activeStageData.Segments;
@@ -416,7 +416,7 @@ public partial class Game1
     // Persists score, stars, lives, and completion data for the current local user.
     private void SaveStageProgress()
     {
-        // TODO NEXT: Unlock the next stage on clear and cap or summarize score history so saves do not grow forever.
+        // TODO: Unlock the next stage on clear and cap or summarize score history so saves do not grow forever.
         EnsureCurrentUser();
 
         if (!_currentUser!.StageProgress.TryGetValue(_activeStage.Number, out StageProgress? progress))
@@ -484,7 +484,7 @@ public partial class Game1
     // Checks the runner against nearby tile content and applies pickups or damage.
     private void ResolveGridInteractions()
     {
-        // TODO NEXT: Replace screen-x proximity checks with ColliderComponent/CollisionHelper so player,
+        // TODO: Replace screen-x proximity checks with ColliderComponent/CollisionHelper so player,
         // item, projectile, obstacle, and boss behavior all use the same collision path.
         foreach (Tile tile in _activeStageData.World.AllTiles)
         {

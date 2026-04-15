@@ -10,7 +10,7 @@ public sealed class MainMenuScreen : IScreen
     // Updates future main menu navigation and option selection.
     public void Update(GameTime gameTime)
     {
-        // TODO NEXT: Move main menu navigation out of Game1.Menu and into this screen.
+        // TODO: Move main menu navigation out of Game1.Menu and into this screen.
     }
 
     // Draws the future standalone main menu.

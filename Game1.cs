@@ -32,7 +32,7 @@ public partial class Game1 : Game
 
     private SaveFile _saveFile = new();
     private UserProfile? _currentUser;
-    // TODO NEXT: Move screen ownership into ScreenManager once LoginScreen, MainMenuScreen,
+    // TODO: Move screen ownership into ScreenManager once LoginScreen, MainMenuScreen,
     // StageSelectScreen, GameplayScreen, and GameOverScreen contain the current prototype behavior.
     private GameScreen _screen = GameScreen.MainMenu;
     private MenuFocus _menuFocus = MenuFocus.UserId;
@@ -60,7 +60,7 @@ public partial class Game1 : Game
 
     private StageDefinition _activeStage = null!;
     private Stage _activeStageData = new();
-    // TODO NEXT: Move run state into GameplayScreen/Player/Stage so Game1 only routes update/draw calls.
+    // TODO: Move run state into GameplayScreen/Player/Stage so Game1 only routes update/draw calls.
     private List<MapSegment> _segments = [];
     private MapSegment _activeSegment = null!;
     private float _segmentProgress;

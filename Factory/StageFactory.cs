@@ -20,7 +20,7 @@ public sealed class StageFactory
     // Generates the prototype stage grid with deterministic pickups, hazards, and branch markers.
     private static GridWorld GenerateWorld(StageDefinition definition)
     {
-        // TODO NEXT: Replace the simple deterministic scatter with authored/data-driven layouts,
+        // TODO: Replace the simple deterministic scatter with authored/data-driven layouts,
         // then tune hazard/reward density by Difficulty.
         int columns = Constants.DefaultStageColumns + definition.Number * 8;
         GridWorld world = new(Constants.GameplayRows, columns);

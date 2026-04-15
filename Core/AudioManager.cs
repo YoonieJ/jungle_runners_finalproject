@@ -15,6 +15,6 @@ public sealed class AudioManager
     // Stops all active audio once songs and effects are wired into the manager.
     public void StopAll()
     {
-        // TODO NEXT: Stop active music and looping effects after SoundEffect/Song instances are wired in.
+        // TODO: Stop active music and looping effects after SoundEffect/Song instances are wired in.
     }
 }
