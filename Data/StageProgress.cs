@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace jungle_runners_finalproject;
 
 public sealed class StageProgress
@@ -8,4 +10,5 @@ public sealed class StageProgress
     public int BestScore { get; set; }
     public int BestDifficulty { get; set; }
     public int StarRating { get; set; }
+    public HashSet<string> ItemsCollected { get; set; } = [];
 }

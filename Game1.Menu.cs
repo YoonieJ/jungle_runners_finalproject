@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 
 namespace jungle_runners_finalproject;
@@ -10,12 +11,15 @@ public partial class Game1
     private const float GameplayTileSpacing = 150f;
     private const float SpawnScreenOffset = 620f;
     private const float PlayerCollisionWidth = 64f;
+    private const int MaxUserIdLength = 16;
 
     // Loads local save data and guarantees the user dictionary is ready to use.
     private void LoadSaveFile()
     {
         _saveFile = SaveManager.LoadData<SaveFile>(_savePath, _jsonOptions);
         _saveFile.Users ??= [];
+        _saveFile.LastUserId ??= string.Empty;
+        NormalizeSaveFile();
     }
 
     // Writes the current local save data to disk.
@@ -24,30 +28,47 @@ public partial class Game1
         SaveManager.SaveData(_savePath, _saveFile, _jsonOptions);
     }
 
-    // Restores the most recently used local profile when it still exists in the save file.
-    private void TryRestoreLastUser()
+    // Guarantees loaded save data has all dictionaries/lists needed by newer save fields.
+    private void NormalizeSaveFile()
     {
-        if (string.IsNullOrWhiteSpace(_saveFile.LastUserId))
+        foreach ((string userId, UserProfile user) in _saveFile.Users)
         {
-            return;
+            NormalizeUserProfile(userId, user);
         }
+    }
 
-        if (_saveFile.Users.TryGetValue(_saveFile.LastUserId, out UserProfile? restoredUser))
+    // Fills missing collection properties for profiles loaded from older JSON.
+    private static void NormalizeUserProfile(string userId, UserProfile user)
+    {
+        user.UserId = string.IsNullOrWhiteSpace(user.UserId) ? userId : user.UserId.Trim().ToUpperInvariant();
+        user.Settings ??= new SettingsData();
+        user.StageProgress ??= [];
+        user.TopScores ??= [];
+        user.CollectedItems ??= [];
+        user.Scores ??= [];
+
+        foreach ((int stageNumber, StageProgress progress) in user.StageProgress)
         {
-            _currentUser = restoredUser;
-            _typedUserId = _currentUser.UserId;
-            _soundEnabled = _currentUser.Settings.SoundEnabled;
-            _selectedDifficulty = _currentUser.Settings.Difficulty;
-            _viewMode = _currentUser.Settings.ViewMode;
-            _menuMessage = $"Welcome back, {_currentUser.UserId}.";
+            progress.StageNumber = progress.StageNumber == 0 ? stageNumber : progress.StageNumber;
+            progress.ItemsCollected ??= [];
+
+            if (!user.TopScores.ContainsKey(stageNumber))
+            {
+                user.TopScores[stageNumber] = progress.BestScore;
+            }
         }
     }
 
     // Handles main menu navigation, user profile creation, sound toggling, and logout.
     private void UpdateMainMenu(KeyboardState keyboard, float deltaSeconds)
     {
-        // TODO: Finish the login/settings menu: handle typing into UserId
-        // and expose difficulty instead of only toggling sound.
+        if (_currentUser is null)
+        {
+            UpdateUserIdEntry(keyboard);
+            return;
+        }
+
+        // TODO: Add a full settings menu with difficulty, view mode, and other options.
         if (IsRepeatingKeyPress(keyboard, Keys.Down, ref _menuDownRepeatTimer, deltaSeconds))
         {
             _mainMenuSelection = (_mainMenuSelection + 1) % _mainMenuOptions.Length;
@@ -74,8 +95,40 @@ public partial class Game1
             {
                 _currentUser = null;
                 _saveFile.LastUserId = string.Empty;
-                _menuMessage = "Logged out.";
+                _typedUserId = string.Empty;
+                _mainMenuSelection = 0;
+                _menuFocus = MenuFocus.UserId;
+                _menuMessage = "Enter user id, then press Enter.";
                 SaveSaveFile();
+            }
+        }
+    }
+
+    // Captures a local profile id before the player enters the main menu.
+    private void UpdateUserIdEntry(KeyboardState keyboard)
+    {
+        foreach (Keys key in keyboard.GetPressedKeys())
+        {
+            if (!_previousKeyboard.IsKeyUp(key))
+            {
+                continue;
+            }
+
+            if (key == Keys.Back && _typedUserId.Length > 0)
+            {
+                _typedUserId = _typedUserId[..^1];
+                continue;
+            }
+
+            if (key == Keys.Enter)
+            {
+                LoadCurrentUserFromTypedId();
+                continue;
+            }
+
+            if (TryGetUserIdCharacter(key, keyboard, out char character) && _typedUserId.Length < MaxUserIdLength)
+            {
+                _typedUserId += character;
             }
         }
     }
@@ -208,15 +261,27 @@ public partial class Game1
     // Draws the prototype main menu and current local user id.
     private void DrawMainMenu()
     {
-        PixelFont.Draw(_spriteBatch, _pixel, "JUNGLE RUNNERS", 90, 80, 8, Color.Gold);
+        _spriteBatch.Draw(_mainMenuBackground, new Rectangle(0, 0, WindowWidth, WindowHeight), Color.White);
+        _spriteBatch.DrawString(_minecraftFont, "JUNGLE RUNNERS", new Vector2(92, 82), Color.DarkOliveGreen, 0f, Vector2.Zero, 5f, SpriteEffects.None, 0f);
+        _spriteBatch.DrawString(_minecraftFont, "JUNGLE RUNNERS", new Vector2(90, 80), Color.Gold, 0f, Vector2.Zero, 5f, SpriteEffects.None, 0f);
         PixelFont.Draw(_spriteBatch, _pixel, _menuMessage, 100, 180, 3, Color.White);
-        PixelFont.Draw(_spriteBatch, _pixel, $"USER {_typedUserId}", 100, 220, 3, _menuFocus == MenuFocus.UserId ? Color.Gold : Color.White);
+        string userText = string.IsNullOrWhiteSpace(_typedUserId) ? "USER : " : $"USER : {_typedUserId}";
+        PixelFont.Draw(_spriteBatch, _pixel, userText, 100, 220, 3, _menuFocus == MenuFocus.UserId ? Color.Gold : Color.White);
+
+        if (_currentUser is null)
+        {
+            return;
+        }
+
+        int completedStages = _currentUser.StageProgress.Values.Count(progress => progress.IsCompleted);
+        PixelFont.Draw(_spriteBatch, _pixel, $"BEST SCORE {_currentUser.BestScore}", 100, 260, 3, Color.White);
+        PixelFont.Draw(_spriteBatch, _pixel, $"STAGES CLEARED {completedStages}", 100, 300, 3, Color.White);
 
         for (int i = 0; i < _mainMenuOptions.Length; i++)
         {
             Color color = i == _mainMenuSelection ? Color.LimeGreen : Color.White;
             string prefix = i == _mainMenuSelection ? "> " : "  ";
-            PixelFont.Draw(_spriteBatch, _pixel, prefix + _mainMenuOptions[i], 120, 270 + i * 54, 4, color);
+            PixelFont.Draw(_spriteBatch, _pixel, prefix + _mainMenuOptions[i], 120, 360 + i * 54, 4, color);
         }
     }
 
@@ -224,9 +289,22 @@ public partial class Game1
     private void DrawStageSelect()
     {
         StageDefinition stage = _stages[_selectedStage];
+        StageProgress? progress = GetCurrentStageProgress(stage.Number);
         PixelFont.Draw(_spriteBatch, _pixel, "SELECT STAGE", 90, 80, 7, Color.Gold);
         PixelFont.Draw(_spriteBatch, _pixel, $"STAGE {stage.Number}: {stage.Name}", 100, 210, 4, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, stage.Description, 100, 270, 3, Color.LightGreen);
+        if (progress is null)
+        {
+            PixelFont.Draw(_spriteBatch, _pixel, "NOT CLEARED YET", 100, 345, 3, Color.White);
+            PixelFont.Draw(_spriteBatch, _pixel, "BEST 0  STARS 0", 100, 385, 3, Color.White);
+        }
+        else
+        {
+            string clearedText = progress.IsCompleted ? "CLEARED" : "NOT CLEARED YET";
+            PixelFont.Draw(_spriteBatch, _pixel, clearedText, 100, 345, 3, progress.IsCompleted ? Color.Gold : Color.White);
+            PixelFont.Draw(_spriteBatch, _pixel, $"BEST {progress.BestScore}  STARS {progress.StarRating}", 100, 385, 3, Color.White);
+            PixelFont.Draw(_spriteBatch, _pixel, $"ITEMS {progress.ItemsCollected.Count}", 100, 425, 3, Color.White);
+        }
         PixelFont.Draw(_spriteBatch, _pixel, "LEFT/RIGHT CHOOSE  ENTER START  ESC MENU", 100, 610, 3, Color.White);
     }
 
@@ -298,6 +376,8 @@ public partial class Game1
     // Resets run state and builds the selected stage for a fresh attempt.
     private void StartRun()
     {
+        EnsureCurrentUser();
+
         // TODO: Apply selected difficulty to stage generation, lives, scoring targets, and hazard speed.
         _activeStage = _stages[_selectedStage];
         _activeStageData = _stageFactory.Create(_activeStage);
@@ -319,6 +399,7 @@ public partial class Game1
         _coins = 0;
         _boosters = 0;
         _score = 0;
+        _collectedItemsThisRun.Clear();
         _runWon = false;
         _awaitingRouteChoice = false;
         _routeChoiceIndex = 0;
@@ -394,23 +475,76 @@ public partial class Game1
             return;
         }
 
+        LoadCurrentUserFromTypedId();
+    }
+
+    // Loads the requested local profile, or creates it when this id has not played before.
+    private void LoadCurrentUserFromTypedId()
+    {
         if (string.IsNullOrWhiteSpace(_typedUserId))
         {
-            _typedUserId = "PLAYER1";
+            _menuMessage = "Type an id first.";
+            return;
         }
 
-        if (!_saveFile.Users.TryGetValue(_typedUserId, out UserProfile? user))
+        string userId = _typedUserId.Trim().ToUpperInvariant();
+        _typedUserId = userId;
+
+        bool isNewUser = false;
+        if (!TryGetSavedUser(userId, out UserProfile? user) || user is null)
         {
             user = new UserProfile
             {
-                UserId = _typedUserId
+                UserId = userId
             };
-            _saveFile.Users[_typedUserId] = user;
+            _saveFile.Users[userId] = user;
+            isNewUser = true;
         }
 
+        NormalizeUserProfile(userId, user);
         _currentUser = user;
         _saveFile.LastUserId = _currentUser.UserId;
+        _soundEnabled = _currentUser.Settings.SoundEnabled;
+        _selectedDifficulty = _currentUser.Settings.Difficulty;
+        _viewMode = _currentUser.Settings.ViewMode;
+        _menuFocus = MenuFocus.Options;
+        _menuMessage = isNewUser ? $"Created profile {_currentUser.UserId}." : $"Loaded profile {_currentUser.UserId}.";
         SaveSaveFile();
+    }
+
+    // Looks up profiles without making user ids case-sensitive.
+    private bool TryGetSavedUser(string userId, out UserProfile? user)
+    {
+        if (_saveFile.Users.TryGetValue(userId, out user))
+        {
+            return true;
+        }
+
+        string? matchingKey = _saveFile.Users.Keys.FirstOrDefault(key => string.Equals(key, userId, StringComparison.OrdinalIgnoreCase));
+        if (matchingKey is null)
+        {
+            return false;
+        }
+
+        user = _saveFile.Users[matchingKey];
+        if (matchingKey != userId)
+        {
+            _saveFile.Users.Remove(matchingKey);
+            _saveFile.Users[userId] = user;
+        }
+
+        return true;
+    }
+
+    // Reads saved stage progress for the active user.
+    private StageProgress? GetCurrentStageProgress(int stageNumber)
+    {
+        if (_currentUser is null)
+        {
+            return null;
+        }
+
+        return _currentUser.StageProgress.TryGetValue(stageNumber, out StageProgress? progress) ? progress : null;
     }
 
     // Persists score, stars, lives, and completion data for the current local user.
@@ -436,6 +570,12 @@ public partial class Game1
             progress.BestDifficulty = (int)_selectedDifficulty;
             progress.StarRating = CalculateStarRating(_score);
         }
+        foreach (string itemId in _collectedItemsThisRun)
+        {
+            progress.ItemsCollected.Add(itemId);
+            _currentUser.CollectedItems.Add(itemId);
+        }
+        _currentUser.TopScores[_activeStage.Number] = progress.BestScore;
         _currentUser.BestScore = System.Math.Max(_currentUser.BestScore, _score);
         _currentUser.Lives = _lives;
         _currentUser.Scores.Add(new ScoreEntry
@@ -508,11 +648,18 @@ public partial class Game1
                     break;
                 case TileContent.LifeItem:
                     _lives = System.Math.Min(5, _lives + 1);
+                    TrackCollectedItem(tile);
                     tile.Content = TileContent.Empty;
                     break;
                 case TileContent.ScoreBooster:
                     _boosters++;
                     _scoreBoostTimer = 5f;
+                    TrackCollectedItem(tile);
+                    tile.Content = TileContent.Empty;
+                    break;
+                case TileContent.Collectible:
+                case TileContent.Item:
+                    TrackCollectedItem(tile);
                     tile.Content = TileContent.Empty;
                     break;
                 case TileContent.Projectile:
@@ -532,6 +679,13 @@ public partial class Game1
                     break;
             }
         }
+    }
+
+    // Records inventory-style pickups for the run so they can be persisted by stage and user.
+    private void TrackCollectedItem(Tile tile)
+    {
+        string itemId = $"{tile.Content}-S{_activeStage.Number}-C{tile.Column}-R{tile.Row}";
+        _collectedItemsThisRun.Add(itemId);
     }
 
     // Applies damage, temporary invulnerability, and the transition to game over.
@@ -700,6 +854,44 @@ public partial class Game1
     private bool IsNewKeyPress(KeyboardState keyboard, Keys key)
     {
         return keyboard.IsKeyDown(key) && _previousKeyboard.IsKeyUp(key);
+    }
+
+    // Converts new key presses into supported user id characters.
+    private static bool TryGetUserIdCharacter(Keys key, KeyboardState keyboard, out char character)
+    {
+        if (key >= Keys.A && key <= Keys.Z)
+        {
+            character = (char)('A' + (int)key - (int)Keys.A);
+            return true;
+        }
+
+        if (key >= Keys.D0 && key <= Keys.D9)
+        {
+            character = (char)('0' + (int)key - (int)Keys.D0);
+            return true;
+        }
+
+        if (key >= Keys.NumPad0 && key <= Keys.NumPad9)
+        {
+            character = (char)('0' + (int)key - (int)Keys.NumPad0);
+            return true;
+        }
+
+        if (key == Keys.OemMinus)
+        {
+            bool shiftHeld = keyboard.IsKeyDown(Keys.LeftShift) || keyboard.IsKeyDown(Keys.RightShift);
+            character = shiftHeld ? '_' : '-';
+            return true;
+        }
+
+        if (key == Keys.OemPeriod)
+        {
+            character = '.';
+            return true;
+        }
+
+        character = '\0';
+        return false;
     }
 
     // Detects an initial key press, then repeats while the key is held for menu navigation.

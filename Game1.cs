@@ -30,6 +30,8 @@ public partial class Game1 : Game
 
     private SpriteBatch _spriteBatch = null!;
     private Texture2D _pixel = null!;
+    private Texture2D _mainMenuBackground = null!;
+    private SpriteFont _minecraftFont = null!;
     private KeyboardState _previousKeyboard;
 
     private SaveFile _saveFile = new();
@@ -48,7 +50,7 @@ public partial class Game1 : Game
     private float _menuUpRepeatTimer;
     private float _menuDownRepeatTimer;
 
-    private readonly string[] _mainMenuOptions = ["Start Game", "Settings", "Logout"];
+    private readonly string[] _mainMenuOptions = ["Start Game", "Sound", "Logout"];
     private readonly StageDefinition[] _stages =
     [
         new(1, "Overgrown Gate", "Broken stone, low traps, safer routes.", 1650, 2500, 3350),
@@ -59,8 +61,8 @@ public partial class Game1 : Game
     private readonly RowDepthMapper _rowDepthMapper = new();
     private readonly WorldScroller _worldScroller = new();
 
-    private string _typedUserId = "PLAYER1";
-    private string _menuMessage = "Enter a user id, then press Enter.";
+    private string _typedUserId = string.Empty;
+    private string _menuMessage = "Enter user id, then press Enter.";
 
     private StageDefinition _activeStage = null!;
     private Stage _activeStageData = new();
@@ -85,6 +87,7 @@ public partial class Game1 : Game
     private string _gameOverTitle = "";
     private string _gameOverDetail = "";
     private Random _runRandom = new(1);
+    private readonly HashSet<string> _collectedItemsThisRun = [];
 
     // Configures the game window, content root, and base MonoGame settings.
     public Game1()
@@ -102,7 +105,6 @@ public partial class Game1 : Game
     protected override void Initialize()
     {
         LoadSaveFile();
-        TryRestoreLastUser();
         base.Initialize();
     }
 
@@ -112,6 +114,8 @@ public partial class Game1 : Game
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         _pixel = new Texture2D(GraphicsDevice, 1, 1);
         _pixel.SetData([Color.White]);
+        _mainMenuBackground = Content.Load<Texture2D>("jungle_runners_main");
+        _minecraftFont = Content.Load<SpriteFont>("Fonts/Minecraft");
     }
 
     // Routes per-frame input and simulation work to the active prototype screen.
