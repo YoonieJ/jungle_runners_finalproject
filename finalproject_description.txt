@@ -1,6 +1,6 @@
 TODO: Turn the current Game1/Game1.Menu prototype into the screen-based structure that already exists in Screens, Core, Rendering, Entities, and Components.
 
-TODO: Finish the login flow. Main menu currently stores a user id/password, but there is no text entry, password checking, or visible password field.
+TODO: Finish the local login flow. Main menu currently stores a user id only, but there is no text entry or visible user id field beyond the prototype label.
 
 TODO: Build the real settings flow. Difficulty, sound, and view mode are saved in UserProfile, but only sound/view toggles are usable right now.
 

@@ -9,6 +9,7 @@ public sealed class Label
     public Vector2 Position { get; set; }
     public Color Color { get; set; } = Color.White;
 
+    // Draws the label text once UI text rendering is wired in.
     public void Draw(SpriteBatch spriteBatch)
     {
     }

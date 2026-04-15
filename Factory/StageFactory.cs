@@ -4,6 +4,7 @@ namespace jungle_runners_finalproject;
 
 public sealed class StageFactory
 {
+    // Builds a full stage from its definition, including world tiles and route graph.
     public Stage Create(StageDefinition definition)
     {
         Stage stage = new()
@@ -16,6 +17,7 @@ public sealed class StageFactory
         return stage;
     }
 
+    // Generates the prototype stage grid with deterministic pickups, hazards, and branch markers.
     private static GridWorld GenerateWorld(StageDefinition definition)
     {
         // TODO NEXT: Replace the simple deterministic scatter with authored/data-driven layouts,
@@ -60,6 +62,7 @@ public sealed class StageFactory
         return world;
     }
 
+    // Builds the route graph that powers branch choices during a run.
     private static void BuildGraph(Stage stage)
     {
         MapSegment start = new() { Name = "Approach", Length = 1200f, PreferredRow = Constants.MiddleLayer };

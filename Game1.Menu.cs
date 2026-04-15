@@ -11,17 +11,20 @@ public partial class Game1
     private const float SpawnScreenOffset = 620f;
     private const float PlayerCollisionWidth = 64f;
 
+    // Loads local save data and guarantees the user dictionary is ready to use.
     private void LoadSaveFile()
     {
         _saveFile = SaveManager.LoadData<SaveFile>(_savePath, _jsonOptions);
         _saveFile.Users ??= [];
     }
 
+    // Writes the current local save data to disk.
     private void SaveSaveFile()
     {
         SaveManager.SaveData(_savePath, _saveFile, _jsonOptions);
     }
 
+    // Restores the most recently used local profile when it still exists in the save file.
     private void TryRestoreLastUser()
     {
         if (string.IsNullOrWhiteSpace(_saveFile.LastUserId))
@@ -40,10 +43,11 @@ public partial class Game1
         }
     }
 
+    // Handles main menu navigation, user profile creation, sound toggling, and logout.
     private void UpdateMainMenu(KeyboardState keyboard)
     {
-        // TODO NEXT: Finish the login/settings menu: handle typing into UserId/Password,
-        // validate returning users, and expose difficulty instead of only toggling sound.
+        // TODO NEXT: Finish the login/settings menu: handle typing into UserId
+        // and expose difficulty instead of only toggling sound.
         if (IsNewKeyPress(keyboard, Keys.Down))
         {
             _mainMenuSelection = (_mainMenuSelection + 1) % _mainMenuOptions.Length;
@@ -76,6 +80,7 @@ public partial class Game1
         }
     }
 
+    // Handles stage-select navigation and starts the selected stage.
     private void UpdateStageSelect(KeyboardState keyboard)
     {
         if (IsNewKeyPress(keyboard, Keys.Escape))
@@ -99,6 +104,7 @@ public partial class Game1
         }
     }
 
+    // Runs the active stage simulation, including movement, actions, scoring, and win checks.
     private void UpdatePlaying(KeyboardState keyboard, float deltaSeconds)
     {
         if (IsNewKeyPress(keyboard, Keys.Escape))
@@ -185,6 +191,7 @@ public partial class Game1
         }
     }
 
+    // Handles the game-over screen shortcuts back to stage select or the main menu.
     private void UpdateGameOver(KeyboardState keyboard)
     {
         if (IsNewKeyPress(keyboard, Keys.Enter))
@@ -198,6 +205,7 @@ public partial class Game1
         }
     }
 
+    // Draws the prototype main menu and current local user id.
     private void DrawMainMenu()
     {
         PixelFont.Draw(_spriteBatch, _pixel, "JUNGLE RUNNERS", 90, 80, 8, Color.Gold);
@@ -212,6 +220,7 @@ public partial class Game1
         }
     }
 
+    // Draws the current stage card and stage-select instructions.
     private void DrawStageSelect()
     {
         StageDefinition stage = _stages[_selectedStage];
@@ -221,6 +230,7 @@ public partial class Game1
         PixelFont.Draw(_spriteBatch, _pixel, "LEFT/RIGHT CHOOSE  ENTER START  ESC MENU", 100, 610, 3, Color.White);
     }
 
+    // Draws the side-view prototype using colored rectangles for lanes, contents, and the player.
     private void DrawFrontView()
     {
         // TODO NEXT: Move this placeholder rectangle rendering into FrontViewRenderer and
@@ -250,6 +260,7 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle((int)RunnerX, (int)playerY, (int)playerWidth, (int)playerHeight), playerColor);
     }
 
+    // Draws the overhead grid view of the same stage data.
     private void DrawTopView()
     {
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, WindowWidth, WindowHeight), new Color(23, 91, 67));
@@ -257,6 +268,7 @@ public partial class Game1
         PixelFont.Draw(_spriteBatch, _pixel, "TOP VIEW SAME GRID", 60, 620, 4, Color.White);
     }
 
+    // Draws the score, lives, counters, input hints, and route-choice prompt.
     private void DrawHud()
     {
         PixelFont.Draw(_spriteBatch, _pixel, $"SCORE {_score}", 865, 28, 4, Color.White);
@@ -274,6 +286,7 @@ public partial class Game1
         }
     }
 
+    // Draws the stage-clear or game-over result screen.
     private void DrawGameOver()
     {
         Color titleColor = _runWon ? Color.Gold : Color.OrangeRed;
@@ -282,6 +295,7 @@ public partial class Game1
         PixelFont.Draw(_spriteBatch, _pixel, "ENTER STAGE SELECT  ESC MENU", 130, 420, 3, Color.White);
     }
 
+    // Resets run state and builds the selected stage for a fresh attempt.
     private void StartRun()
     {
         // TODO NEXT: Apply selected difficulty to stage generation, lives, scoring targets, and hazard speed.
@@ -312,6 +326,7 @@ public partial class Game1
         _screen = GameScreen.Playing;
     }
 
+    // Lets the player choose between available route branches.
     private void UpdateRouteChoice(KeyboardState keyboard)
     {
         if (_activeStageData.CurrentNode is null || _activeStageData.CurrentNode.Next.Count == 0)
@@ -337,6 +352,7 @@ public partial class Game1
         }
     }
 
+    // Advances automatic routes or pauses for player choice at branch nodes.
     private void UpdateRouteProgress()
     {
         if (_activeStageData.CurrentNode is null || _segmentProgress < _activeSegment.Length)
@@ -359,6 +375,7 @@ public partial class Game1
         _routeChoiceIndex = 0;
     }
 
+    // Moves the run into the selected graph node and aligns the player with that route.
     private void AdvanceToRoute(StageNode nextNode)
     {
         _activeStageData.CurrentNode = nextNode;
@@ -369,6 +386,7 @@ public partial class Game1
         _routeChoiceIndex = 0;
     }
 
+    // Creates or restores the current local profile using only the typed user id.
     private void EnsureCurrentUser()
     {
         if (_currentUser is not null)
@@ -385,8 +403,7 @@ public partial class Game1
         {
             user = new UserProfile
             {
-                UserId = _typedUserId,
-                Password = _typedPassword
+                UserId = _typedUserId
             };
             _saveFile.Users[_typedUserId] = user;
         }
@@ -396,6 +413,7 @@ public partial class Game1
         SaveSaveFile();
     }
 
+    // Persists score, stars, lives, and completion data for the current local user.
     private void SaveStageProgress()
     {
         // TODO NEXT: Unlock the next stage on clear and cap or summarize score history so saves do not grow forever.
@@ -428,6 +446,7 @@ public partial class Game1
         SaveSaveFile();
     }
 
+    // Toggles sound preference and saves it when a profile is active.
     private void ToggleSound()
     {
         _soundEnabled = !_soundEnabled;
@@ -440,6 +459,7 @@ public partial class Game1
         _menuMessage = _soundEnabled ? "Sound enabled." : "Sound muted.";
     }
 
+    // Updates short-lived jump, slide, rope, score boost, and invulnerability timers.
     private void UpdatePlayerActionTimers(float deltaSeconds)
     {
         if (_playerJumpOffset > 0f || _playerVelocityY < 0f)
@@ -461,6 +481,7 @@ public partial class Game1
         _invulnerableTimer = System.Math.Max(0f, _invulnerableTimer - deltaSeconds);
     }
 
+    // Checks the runner against nearby tile content and applies pickups or damage.
     private void ResolveGridInteractions()
     {
         // TODO NEXT: Replace screen-x proximity checks with ColliderComponent/CollisionHelper so player,
@@ -513,6 +534,7 @@ public partial class Game1
         }
     }
 
+    // Applies damage, temporary invulnerability, and the transition to game over.
     private void DamagePlayer()
     {
         if (_invulnerableTimer > 0f || _ropeTimer > 0f)
@@ -533,6 +555,7 @@ public partial class Game1
         }
     }
 
+    // Draws depth-sorted lane bands for the front-view prototype.
     private void DrawFrontLanes()
     {
         for (int row = Constants.BackLayer; row >= Constants.FrontLayer; row--)
@@ -550,6 +573,7 @@ public partial class Game1
         }
     }
 
+    // Draws one visible tile or tile content marker in the front-view lane space.
     private void DrawFrontTile(Tile tile, float x)
     {
         float scale = _rowDepthMapper.GetScale(tile.Row);
@@ -562,6 +586,7 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle((int)x, y, width, height), color);
     }
 
+    // Draws the scrollable overhead grid and the player's current row.
     private void DrawTopGrid()
     {
         const int originX = 100;
@@ -605,11 +630,13 @@ public partial class Game1
         PixelFont.Draw(_spriteBatch, _pixel, "ROW 3", 28, originY + (cell + 18) * 2 + 8, 2, Color.White);
     }
 
+    // Converts a stage grid column into the current screen-space x position.
     private float GetTileScreenX(int column)
     {
         return SpawnScreenOffset + column * GameplayTileSpacing - _worldScroller.OffsetX;
     }
 
+    // Chooses the placeholder draw color for a tile based on content first, then tile type.
     private Color GetTileColor(Tile tile)
     {
         return tile.Content switch
@@ -627,6 +654,7 @@ public partial class Game1
         };
     }
 
+    // Returns a content-specific placeholder width for front-view tile rendering.
     private static float TileVisualWidth(Tile tile)
     {
         return tile.Content switch
@@ -638,6 +666,7 @@ public partial class Game1
         };
     }
 
+    // Returns a content-specific placeholder height for front-view tile rendering.
     private static float TileVisualHeight(Tile tile)
     {
         return tile.Content switch
@@ -651,6 +680,7 @@ public partial class Game1
         };
     }
 
+    // Converts the final score into a bronze, silver, or gold star count.
     private int CalculateStarRating(int score)
     {
         if (score >= _activeStage.GoldScore)
@@ -666,6 +696,7 @@ public partial class Game1
         return score >= _activeStage.BronzeScore ? 1 : 0;
     }
 
+    // Detects a key press on the frame it transitions from up to down.
     private bool IsNewKeyPress(KeyboardState keyboard, Keys key)
     {
         return keyboard.IsKeyDown(key) && _previousKeyboard.IsKeyUp(key);

@@ -6,11 +6,13 @@ public sealed class AudioManager
     public float MusicVolume { get; set; } = 0.8f;
     public float EffectsVolume { get; set; } = 0.9f;
 
+    // Flips the global muted state for future music and sound effects.
     public void ToggleMute()
     {
         IsMuted = !IsMuted;
     }
 
+    // Stops all active audio once songs and effects are wired into the manager.
     public void StopAll()
     {
         // TODO NEXT: Stop active music and looping effects after SoundEffect/Song instances are wired in.

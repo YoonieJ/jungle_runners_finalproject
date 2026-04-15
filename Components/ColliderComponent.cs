@@ -8,6 +8,7 @@ public sealed class ColliderComponent
     public bool IsTrigger { get; set; }
     public bool Enabled { get; set; } = true;
 
+    // Checks for an overlap when both colliders are enabled.
     public bool Intersects(ColliderComponent other)
     {
         return Enabled && other.Enabled && Bounds.Intersects(other.Bounds);

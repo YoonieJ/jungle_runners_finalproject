@@ -10,11 +10,13 @@ public sealed class AnimationComponent
     public int CurrentFrame { get; private set; }
     public float FrameTime { get; set; } = 0.12f;
 
+    // Registers an animation name and its frame count.
     public void Add(string name, int frameCount)
     {
         _framesByName[name] = frameCount;
     }
 
+    // Switches to a different animation and restarts it from the first frame.
     public void Play(string name)
     {
         if (CurrentAnimation == name)

@@ -4,6 +4,7 @@ namespace jungle_runners_finalproject;
 
 public sealed class Tile
 {
+    // Creates a tile at a fixed grid coordinate with the requested type.
     public Tile(int column, int row, TileType type)
     {
         Column = column;

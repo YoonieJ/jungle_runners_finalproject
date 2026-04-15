@@ -9,6 +9,7 @@ public sealed class SpriteComponent
     public Rectangle? SourceRectangle { get; set; }
     public Color Tint { get; set; } = Color.White;
 
+    // Draws the configured texture when one is assigned.
     public void Draw(SpriteBatch spriteBatch, Vector2 position)
     {
         if (Texture is null)

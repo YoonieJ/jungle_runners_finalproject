@@ -6,13 +6,14 @@ namespace jungle_runners_finalproject;
 public sealed class LoginScreen : IScreen
 {
     public string UserId { get; set; } = string.Empty;
-    public string Password { get; set; } = string.Empty;
 
+    // Updates the future user-id-only login screen.
     public void Update(GameTime gameTime)
     {
-        // TODO NEXT: Move the user id/password input and validation currently implied by Game1 into this screen.
+        // TODO NEXT: Move the user id input currently implied by Game1 into this screen.
     }
 
+    // Draws the future user-id login UI.
     public void Draw(SpriteBatch spriteBatch)
     {
     }

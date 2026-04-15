@@ -8,6 +8,7 @@ public sealed class MovementComponent
     public Vector2 Acceleration { get; set; }
     public float MaxSpeed { get; set; } = 420f;
 
+    // Applies acceleration for this frame and clamps velocity to MaxSpeed.
     public void ApplyAcceleration(float deltaSeconds)
     {
         Velocity += Acceleration * deltaSeconds;

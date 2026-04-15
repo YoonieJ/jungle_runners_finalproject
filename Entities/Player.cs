@@ -10,6 +10,7 @@ public sealed class Player : Entity
     public int Coins { get; set; }
     public int Score { get; set; }
 
+    // Moves the player using its velocity before refreshing base entity state.
     public override void Update(GameTime gameTime)
     {
         Position += Movement.Velocity * (float)gameTime.ElapsedGameTime.TotalSeconds;

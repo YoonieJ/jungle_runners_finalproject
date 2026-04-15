@@ -10,12 +10,14 @@ public sealed class GameManager
     public InputManager Input { get; } = new();
     public AudioManager Audio { get; } = new();
 
+    // Updates shared input first, then lets the active screen update.
     public void Update(GameTime gameTime)
     {
         Input.Update();
         Screens.Update(gameTime);
     }
 
+    // Draws the current screen through the screen manager.
     public void Draw(SpriteBatch spriteBatch)
     {
         Screens.Draw(spriteBatch);

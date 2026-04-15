@@ -5,7 +5,6 @@ namespace jungle_runners_finalproject;
 public sealed class UserProfile
 {
     public string UserId { get; set; } = string.Empty;
-    public string Password { get; set; } = string.Empty;
     public int BestScore { get; set; }
     public int Lives { get; set; } = 3;
     public SettingsData Settings { get; set; } = new();

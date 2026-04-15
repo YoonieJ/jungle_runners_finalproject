@@ -17,11 +17,13 @@ public abstract class Entity
         (int)Size.X,
         (int)Size.Y);
 
+    // Synchronizes the collider with the entity's current bounds.
     public virtual void Update(GameTime gameTime)
     {
         Collider.Bounds = Bounds;
     }
 
+    // Draws the entity sprite at its current position.
     public virtual void Draw(SpriteBatch spriteBatch)
     {
         Sprite.Draw(spriteBatch, Position);

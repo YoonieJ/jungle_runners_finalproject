@@ -56,8 +56,7 @@ public partial class Game1 : Game
     private readonly WorldScroller _worldScroller = new();
 
     private string _typedUserId = "PLAYER1";
-    private string _typedPassword = "0000";
-    private string _menuMessage = "Enter a user id and 4 digit password, then press Enter.";
+    private string _menuMessage = "Enter a user id, then press Enter.";
 
     private StageDefinition _activeStage = null!;
     private Stage _activeStageData = new();
@@ -83,6 +82,7 @@ public partial class Game1 : Game
     private string _gameOverDetail = "";
     private Random _runRandom = new(1);
 
+    // Configures the game window, content root, and base MonoGame settings.
     public Game1()
     {
         _graphics = new GraphicsDeviceManager(this);
@@ -94,6 +94,7 @@ public partial class Game1 : Game
         IsMouseVisible = true;
     }
 
+    // Loads saved user settings and prepares the base MonoGame game state.
     protected override void Initialize()
     {
         LoadSaveFile();
@@ -101,6 +102,7 @@ public partial class Game1 : Game
         base.Initialize();
     }
 
+    // Creates the sprite batch and a reusable one-pixel texture used by placeholder drawing.
     protected override void LoadContent()
     {
         _spriteBatch = new SpriteBatch(GraphicsDevice);
@@ -108,6 +110,7 @@ public partial class Game1 : Game
         _pixel.SetData([Color.White]);
     }
 
+    // Routes per-frame input and simulation work to the active prototype screen.
     protected override void Update(GameTime gameTime)
     {
         KeyboardState keyboard = Keyboard.GetState();
@@ -137,6 +140,7 @@ public partial class Game1 : Game
         base.Update(gameTime);
     }
 
+    // Clears the back buffer and draws whichever screen is currently active.
     protected override void Draw(GameTime gameTime)
     {
         GraphicsDevice.Clear(new Color(11, 45, 37));

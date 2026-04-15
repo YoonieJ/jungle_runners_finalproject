@@ -55,6 +55,7 @@ internal static class PixelFont
         ['Z'] = ["11111", "00001", "00010", "00100", "01000", "10000", "11111"]
     };
 
+    // Draws text by stamping scaled pixels from the built-in 5x7 glyph table.
     public static void Draw(SpriteBatch spriteBatch, Texture2D pixel, string text, int x, int y, int scale, Color color)
     {
         int cursorX = x;
