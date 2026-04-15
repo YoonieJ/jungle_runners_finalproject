@@ -21,6 +21,8 @@ public partial class Game1 : Game
     private const float ForegroundGroundY = 610f;
     private const int CoinsScoreWeight = 45;
     private const int BoostScoreWeight = 180;
+    private const float MenuKeyRepeatInitialDelay = 0.28f;
+    private const float MenuKeyRepeatInterval = 0.09f;
 
     private readonly GraphicsDeviceManager _graphics;
     private readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
@@ -43,6 +45,8 @@ public partial class Game1 : Game
     private bool _soundEnabled = true;
     private bool _awaitingRouteChoice;
     private int _routeChoiceIndex;
+    private float _menuUpRepeatTimer;
+    private float _menuDownRepeatTimer;
 
     private readonly string[] _mainMenuOptions = ["Start Game", "Settings", "Logout"];
     private readonly StageDefinition[] _stages =
@@ -114,6 +118,7 @@ public partial class Game1 : Game
     protected override void Update(GameTime gameTime)
     {
         KeyboardState keyboard = Keyboard.GetState();
+        float deltaSeconds = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
         if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
         {
@@ -123,13 +128,13 @@ public partial class Game1 : Game
         switch (_screen)
         {
             case GameScreen.MainMenu:
-                UpdateMainMenu(keyboard);
+                UpdateMainMenu(keyboard, deltaSeconds);
                 break;
             case GameScreen.StageSelect:
                 UpdateStageSelect(keyboard);
                 break;
             case GameScreen.Playing:
-                UpdatePlaying(keyboard, (float)gameTime.ElapsedGameTime.TotalSeconds);
+                UpdatePlaying(keyboard, deltaSeconds);
                 break;
             case GameScreen.GameOver:
                 UpdateGameOver(keyboard);

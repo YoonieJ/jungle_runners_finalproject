@@ -44,16 +44,16 @@ public partial class Game1
     }
 
     // Handles main menu navigation, user profile creation, sound toggling, and logout.
-    private void UpdateMainMenu(KeyboardState keyboard)
+    private void UpdateMainMenu(KeyboardState keyboard, float deltaSeconds)
     {
         // TODO: Finish the login/settings menu: handle typing into UserId
         // and expose difficulty instead of only toggling sound.
-        if (IsNewKeyPress(keyboard, Keys.Down))
+        if (IsRepeatingKeyPress(keyboard, Keys.Down, ref _menuDownRepeatTimer, deltaSeconds))
         {
             _mainMenuSelection = (_mainMenuSelection + 1) % _mainMenuOptions.Length;
         }
 
-        if (IsNewKeyPress(keyboard, Keys.Up))
+        if (IsRepeatingKeyPress(keyboard, Keys.Up, ref _menuUpRepeatTimer, deltaSeconds))
         {
             _mainMenuSelection = (_mainMenuSelection + _mainMenuOptions.Length - 1) % _mainMenuOptions.Length;
         }
@@ -700,5 +700,30 @@ public partial class Game1
     private bool IsNewKeyPress(KeyboardState keyboard, Keys key)
     {
         return keyboard.IsKeyDown(key) && _previousKeyboard.IsKeyUp(key);
+    }
+
+    // Detects an initial key press, then repeats while the key is held for menu navigation.
+    private bool IsRepeatingKeyPress(KeyboardState keyboard, Keys key, ref float repeatTimer, float deltaSeconds)
+    {
+        if (keyboard.IsKeyUp(key))
+        {
+            repeatTimer = 0f;
+            return false;
+        }
+
+        if (_previousKeyboard.IsKeyUp(key))
+        {
+            repeatTimer = MenuKeyRepeatInitialDelay;
+            return true;
+        }
+
+        repeatTimer -= deltaSeconds;
+        if (repeatTimer > 0f)
+        {
+            return false;
+        }
+
+        repeatTimer += MenuKeyRepeatInterval;
+        return true;
     }
 }
