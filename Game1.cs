@@ -23,6 +23,7 @@ public partial class Game1 : Game
     private const int BoostScoreWeight = 180;
     private const float MenuKeyRepeatInitialDelay = 0.28f;
     private const float MenuKeyRepeatInterval = 0.09f;
+    private const float RunnerFrameTime = 0.14f;
 
     private readonly GraphicsDeviceManager _graphics;
     private readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
@@ -31,6 +32,10 @@ public partial class Game1 : Game
     private SpriteBatch _spriteBatch = null!;
     private Texture2D _pixel = null!;
     private Texture2D _mainMenuBackground = null!;
+    private Texture2D[] _stageSelectBackgrounds = [];
+    private Texture2D[] _gameplayBackgrounds = [];
+    private Texture2D _coinTexture = null!;
+    private Texture2D[] _playerRunFrames = [];
     private SpriteFont _minecraftFont = null!;
     private KeyboardState _previousKeyboard;
 
@@ -76,6 +81,7 @@ public partial class Game1 : Game
     private bool _canDoubleJump;
     private float _slideTimer;
     private float _ropeTimer;
+    private float _runAnimationTimer;
     private float _scoreBoostTimer;
     private float _invulnerableTimer;
     private int _lives;
@@ -115,6 +121,24 @@ public partial class Game1 : Game
         _pixel = new Texture2D(GraphicsDevice, 1, 1);
         _pixel.SetData([Color.White]);
         _mainMenuBackground = Content.Load<Texture2D>("jungle_runners_main");
+        _stageSelectBackgrounds =
+        [
+            Content.Load<Texture2D>("jungle_runners_main_stage1"),
+            Content.Load<Texture2D>("jungle_runners_main_stage2"),
+            Content.Load<Texture2D>("jungle_runners_main_stage3")
+        ];
+        _gameplayBackgrounds =
+        [
+            Content.Load<Texture2D>("jungle_runners_stage1"),
+            Content.Load<Texture2D>("jungle_runners_stage2"),
+            Content.Load<Texture2D>("jungle_runners_stage3")
+        ];
+        _coinTexture = Content.Load<Texture2D>("Untitled_Artwork");
+        _playerRunFrames =
+        [
+            Content.Load<Texture2D>("player_1"),
+            Content.Load<Texture2D>("player_2")
+        ];
         _minecraftFont = Content.Load<SpriteFont>("Fonts/Minecraft");
     }
 

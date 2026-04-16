@@ -225,6 +225,7 @@ public partial class Game1
         UpdatePlayerActionTimers(deltaSeconds);
 
         _worldScroller.Speed = Constants.ScrollSpeed * (_ropeTimer > 0f ? 1.6f : 1f);
+        _runAnimationTimer += deltaSeconds * (_worldScroller.Speed / Constants.ScrollSpeed);
         _worldScroller.Update(deltaSeconds);
         _distance = _worldScroller.OffsetX;
         _segmentProgress += _worldScroller.Speed * deltaSeconds;
@@ -290,8 +291,11 @@ public partial class Game1
     {
         StageDefinition stage = _stages[_selectedStage];
         StageProgress? progress = GetCurrentStageProgress(stage.Number);
-        PixelFont.Draw(_spriteBatch, _pixel, "SELECT STAGE", 90, 80, 7, Color.Gold);
-        PixelFont.Draw(_spriteBatch, _pixel, $"STAGE {stage.Number}: {stage.Name}", 100, 210, 4, Color.White);
+        DrawFullScreenTexture(_stageSelectBackgrounds[_selectedStage]);
+        _spriteBatch.DrawString(_minecraftFont, "SELECT STAGE", new Vector2(92, 82), Color.DarkOliveGreen, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0f);
+        _spriteBatch.DrawString(_minecraftFont, "SELECT STAGE", new Vector2(90, 80), Color.Gold, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0f);
+        _spriteBatch.DrawString(_minecraftFont, $"STAGE {stage.Number}: {stage.Name}", new Vector2(102, 212), Color.DarkOliveGreen, 0f, Vector2.Zero, 2f, SpriteEffects.None, 0f);
+        _spriteBatch.DrawString(_minecraftFont, $"STAGE {stage.Number}: {stage.Name}", new Vector2(100, 210), Color.White, 0f, Vector2.Zero, 2f, SpriteEffects.None, 0f);
         PixelFont.Draw(_spriteBatch, _pixel, stage.Description, 100, 270, 3, Color.LightGreen);
         if (progress is null)
         {
@@ -313,7 +317,7 @@ public partial class Game1
     {
         // TODO: Move this placeholder rectangle rendering into FrontViewRenderer and
         // draw real sprites/content assets through AssetManager.
-        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, WindowWidth, WindowHeight), new Color(18, 74, 56));
+        DrawGameplayBackground();
         DrawFrontLanes();
 
         foreach (Tile tile in _activeStageData.World.AllTiles.OrderByDescending(tile => tile.Row))
@@ -331,17 +335,18 @@ public partial class Game1
         }
 
         float playerScale = _rowDepthMapper.GetScale(_playerRow);
-        float playerHeight = _slideTimer > 0f ? 46f * playerScale : 88f * playerScale;
-        float playerWidth = 46f * playerScale;
+        float playerHeight = _slideTimer > 0f ? 92f * playerScale : 176f * playerScale;
+        float playerWidth = 92f * playerScale;
         float playerY = _rowDepthMapper.GetGroundY(_playerRow) - playerHeight - _playerJumpOffset;
-        Color playerColor = _invulnerableTimer > 0f ? Color.LightPink : Color.Gold;
-        _spriteBatch.Draw(_pixel, new Rectangle((int)RunnerX, (int)playerY, (int)playerWidth, (int)playerHeight), playerColor);
+        Color playerColor = _invulnerableTimer > 0f ? Color.LightPink : Color.White;
+        Texture2D playerTexture = GetPlayerRunFrame();
+        _spriteBatch.Draw(playerTexture, new Rectangle((int)RunnerX, (int)playerY, (int)playerWidth, (int)playerHeight), playerColor);
     }
 
     // Draws the overhead grid view of the same stage data.
     private void DrawTopView()
     {
-        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, WindowWidth, WindowHeight), new Color(23, 91, 67));
+        DrawGameplayBackground();
         DrawTopGrid();
         PixelFont.Draw(_spriteBatch, _pixel, "TOP VIEW SAME GRID", 60, 620, 4, Color.White);
     }
@@ -373,6 +378,32 @@ public partial class Game1
         PixelFont.Draw(_spriteBatch, _pixel, "ENTER STAGE SELECT  ESC MENU", 130, 420, 3, Color.White);
     }
 
+    // Draws the active stage art behind gameplay elements.
+    private void DrawGameplayBackground()
+    {
+        int stageIndex = Math.Clamp(_activeStage.Number - 1, 0, _gameplayBackgrounds.Length - 1);
+        DrawScrollingBackground(_gameplayBackgrounds[stageIndex], _worldScroller.OffsetX);
+    }
+
+    // Scales a background texture to the fixed game back buffer.
+    private void DrawFullScreenTexture(Texture2D texture)
+    {
+        _spriteBatch.Draw(texture, new Rectangle(0, 0, WindowWidth, WindowHeight), Color.White);
+    }
+
+    // Tiles a wide background horizontally so it can scroll forever while gameplay advances.
+    private void DrawScrollingBackground(Texture2D texture, float scrollOffset)
+    {
+        float scale = WindowHeight / (float)texture.Height;
+        int scaledWidth = (int)MathF.Ceiling(texture.Width * scale);
+        int scrollX = (int)(scrollOffset % scaledWidth);
+
+        for (int x = -scrollX; x < WindowWidth; x += scaledWidth)
+        {
+            _spriteBatch.Draw(texture, new Rectangle(x, 0, scaledWidth, WindowHeight), Color.White);
+        }
+    }
+
     // Resets run state and builds the selected stage for a fresh attempt.
     private void StartRun()
     {
@@ -395,6 +426,7 @@ public partial class Game1
         _ropeTimer = 0f;
         _scoreBoostTimer = 0f;
         _invulnerableTimer = 0f;
+        _runAnimationTimer = 0f;
         _lives = 3;
         _coins = 0;
         _boosters = 0;
@@ -736,8 +768,15 @@ public partial class Game1
         int width = (int)(TileVisualWidth(tile) * scale);
         int height = (int)(TileVisualHeight(tile) * scale);
         int y = (int)(groundY - height);
+        Rectangle destination = new((int)x, y, width, height);
 
-        _spriteBatch.Draw(_pixel, new Rectangle((int)x, y, width, height), color);
+        if (tile.Content == TileContent.Coin)
+        {
+            _spriteBatch.Draw(_coinTexture, destination, Color.White);
+            return;
+        }
+
+        _spriteBatch.Draw(_pixel, destination, color);
     }
 
     // Draws the scrollable overhead grid and the player's current row.
@@ -745,7 +784,10 @@ public partial class Game1
     {
         const int originX = 100;
         const int originY = 190;
-        const int cell = 54;
+        const int cell = 104;
+        const int tileSize = 100;
+        const int contentSize = 52;
+        const int contentInset = (tileSize - contentSize) / 2;
         float scroll = _worldScroller.OffsetX * (cell / GameplayTileSpacing);
 
         for (int row = 0; row < _activeStageData.World.Rows; row++)
@@ -768,17 +810,25 @@ public partial class Game1
                     _ => new Color(30, 94, 64)
                 };
 
-                _spriteBatch.Draw(_pixel, new Rectangle(x, y, cell - 4, cell - 4), baseColor);
+                _spriteBatch.Draw(_pixel, new Rectangle(x, y, tileSize, tileSize), baseColor);
                 if (tile.HasContent)
                 {
-                    _spriteBatch.Draw(_pixel, new Rectangle(x + 12, y + 12, cell - 28, cell - 28), GetTileColor(tile));
+                    Rectangle contentDestination = new(x + contentInset, y + contentInset, contentSize, contentSize);
+                    if (tile.Content == TileContent.Coin)
+                    {
+                        _spriteBatch.Draw(_coinTexture, contentDestination, Color.White);
+                    }
+                    else
+                    {
+                        _spriteBatch.Draw(_pixel, contentDestination, GetTileColor(tile));
+                    }
                 }
             }
         }
 
         int playerX = (int)(originX + RunnerX * (cell / GameplayTileSpacing));
         int playerY = originY + _playerRow * (cell + 18);
-        _spriteBatch.Draw(_pixel, new Rectangle(playerX, playerY, cell - 4, cell - 4), Color.Gold);
+        _spriteBatch.Draw(_pixel, new Rectangle(playerX, playerY, tileSize, tileSize), Color.Gold);
         PixelFont.Draw(_spriteBatch, _pixel, "ROW 1", 28, originY + 8, 2, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, "ROW 2", 28, originY + cell + 26, 2, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, "ROW 3", 28, originY + (cell + 18) * 2 + 8, 2, Color.White);
@@ -788,6 +838,13 @@ public partial class Game1
     private float GetTileScreenX(int column)
     {
         return SpawnScreenOffset + column * GameplayTileSpacing - _worldScroller.OffsetX;
+    }
+
+    // Returns the current runner frame from the two loaded player poses.
+    private Texture2D GetPlayerRunFrame()
+    {
+        int frameIndex = (int)(_runAnimationTimer / RunnerFrameTime) % _playerRunFrames.Length;
+        return _playerRunFrames[frameIndex];
     }
 
     // Chooses the placeholder draw color for a tile based on content first, then tile type.
@@ -813,10 +870,10 @@ public partial class Game1
     {
         return tile.Content switch
         {
-            TileContent.Projectile => 72f,
-            TileContent.Coin => 34f,
-            TileContent.Boss => 118f,
-            _ => 62f
+            TileContent.Projectile => 144f,
+            TileContent.Coin => 68f,
+            TileContent.Boss => 236f,
+            _ => 124f
         };
     }
 
@@ -825,12 +882,12 @@ public partial class Game1
     {
         return tile.Content switch
         {
-            TileContent.Projectile => 18f,
-            TileContent.Coin => 34f,
-            TileContent.Boss => 120f,
-            TileContent.ScoreBooster => 44f,
-            TileContent.LifeItem => 42f,
-            _ => 72f
+            TileContent.Projectile => 36f,
+            TileContent.Coin => 68f,
+            TileContent.Boss => 240f,
+            TileContent.ScoreBooster => 88f,
+            TileContent.LifeItem => 84f,
+            _ => 144f
         };
     }
 
