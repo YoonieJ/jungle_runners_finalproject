@@ -14,7 +14,6 @@ public partial class Game1
     private const float PlayerCollisionWidth = 64f;
     private const int MaxUserIdLength = 16;
     private const int BossStageNumber = 3;
-    private const int BossApproachColumns = 10;
     private const int BossSurvivalScoreBonus = 1600;
     private const float BossIntroDuration = 2.4f;
     private const float BossFightDuration = 18f;
@@ -23,16 +22,15 @@ public partial class Game1
     private const float BossAttackMaxInterval = 1.05f;
     private const string BossName = "THE SUNKEN IDOL";
 
-    #pragma warning disable CS0169 // Reserved for the upcoming stage 3 boss encounter.
     private readonly List<BossAttack> _bossAttacks = [];
     private bool _bossEncounterStarted;
     private bool _bossIntroActive;
     private bool _bossFightActive;
+    private bool _bossDefeated;
     private float _bossIntroTimer;
     private float _bossFightTimer;
     private float _bossAttackTimer;
     private int _bossSurvivalBonus;
-    #pragma warning restore CS0169
 
     private enum BossAttackKind
     {
@@ -259,7 +257,7 @@ public partial class Game1
             _slideTimer = 0.55f;
         }
 
-        if (IsNewKeyPress(keyboard, Keys.R) && _ropeTimer <= 0f)
+        if (IsNewKeyPress(keyboard, Keys.R) && _ropeTimer <= 0f && !IsBossEncounterActive())
         {
             _ropeTimer = 1.8f;
             _scoreBoostTimer = 1.8f;
@@ -268,18 +266,29 @@ public partial class Game1
 
         UpdatePlayerActionTimers(deltaSeconds);
 
-        _worldScroller.Speed = Constants.ScrollSpeed * (_ropeTimer > 0f ? 1.6f : 1f);
+        _worldScroller.Speed = IsBossEncounterActive() ? 0f : Constants.ScrollSpeed * (_ropeTimer > 0f ? 1.6f : 1f);
         _runAnimationTimer += deltaSeconds * (_worldScroller.Speed / Constants.ScrollSpeed);
         _worldScroller.Update(deltaSeconds);
         _distance = _worldScroller.OffsetX;
         _segmentProgress += _worldScroller.Speed * deltaSeconds;
+        UpdateBossEncounter(deltaSeconds);
+        if (_screen != GameScreen.Playing)
+        {
+            return;
+        }
+
         ResolveGridInteractions();
+        if (_screen != GameScreen.Playing)
+        {
+            return;
+        }
+
         UpdateRouteProgress();
 
-        _score = (int)_distance + _coins * CoinsScoreWeight + _boosters * BoostScoreWeight;
+        _score = CalculateRunScore();
 
         float stageEnd = SpawnScreenOffset + _activeStageData.World.Columns * GameplayTileSpacing - RunnerX;
-        if (_worldScroller.OffsetX >= stageEnd)
+        if (_worldScroller.OffsetX >= stageEnd && (_activeStage.Number != BossStageNumber || _bossDefeated))
         {
             _runWon = true;
             _gameOverTitle = "Stage Clear";
@@ -413,6 +422,40 @@ public partial class Game1
         }
     }
 
+    // Draws the stage 3 boss arrival overlay, boss placeholder image, and attacks.
+    private void DrawBossEncounter()
+    {
+        if (!IsBossEncounterActive())
+        {
+            return;
+        }
+
+        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, WindowWidth, WindowHeight), Color.Black * 0.45f);
+
+        Rectangle bossImage = new(WindowWidth - 380, 120, 250, 270);
+        _spriteBatch.Draw(_pixel, bossImage, Color.Purple);
+
+        if (_bossIntroActive)
+        {
+            PixelFont.Draw(_spriteBatch, _pixel, $"{BossName} APPEARED", 210, 160, 5, Color.Gold);
+            PixelFont.Draw(_spriteBatch, _pixel, "SURVIVE THE BATTLE TO CLEAR STAGE 3", 210, 245, 3, Color.White);
+            PixelFont.Draw(_spriteBatch, _pixel, "ROPE DISABLED", 210, 295, 3, Color.OrangeRed);
+            return;
+        }
+
+        foreach (BossAttack attack in _bossAttacks)
+        {
+            Vector2 size = GetBossAttackSize(attack);
+            Color attackColor = attack.Kind == BossAttackKind.Spear ? Color.OrangeRed : Color.DarkRed;
+            Rectangle attackBounds = new((int)attack.Position.X, (int)attack.Position.Y, (int)size.X, (int)size.Y);
+            _spriteBatch.Draw(_pixel, attackBounds, attackColor);
+        }
+
+        PixelFont.Draw(_spriteBatch, _pixel, $"{BossName} {MathF.Ceiling(_bossFightTimer)}", 220, 120, 4, Color.Gold);
+        PixelFont.Draw(_spriteBatch, _pixel, "SLIDE SPEARS  JUMP BOULDERS", 220, 180, 3, Color.White);
+        PixelFont.Draw(_spriteBatch, _pixel, "ROPE DISABLED", 220, 220, 3, Color.OrangeRed);
+    }
+
     // Draws the stage-clear or game-over result screen.
     private void DrawGameOver()
     {
@@ -479,6 +522,7 @@ public partial class Game1
         _runWon = false;
         _awaitingRouteChoice = false;
         _routeChoiceIndex = 0;
+        ResetBossEncounter();
         _runRandom = new Random(_activeStage.Number * 1000 + (int)_selectedDifficulty);
         _screen = GameScreen.Playing;
     }
@@ -640,12 +684,13 @@ public partial class Game1
         }
 
         progress.IsCompleted = progress.IsCompleted || _runWon;
+        int attemptStarRating = CalculateStarRating(_score);
         if (_score > progress.BestScore)
         {
             progress.BestScore = _score;
             progress.BestDifficulty = (int)_selectedDifficulty;
-            progress.StarRating = CalculateStarRating(_score);
         }
+        progress.StarRating = System.Math.Max(progress.StarRating, attemptStarRating);
         foreach (string itemId in _collectedItemsThisRun)
         {
             progress.ItemsCollected.Add(itemId);
@@ -697,6 +742,169 @@ public partial class Game1
         _invulnerableTimer = System.Math.Max(0f, _invulnerableTimer - deltaSeconds);
     }
 
+    // Returns the current score including the stage 3 boss survival bonus when earned.
+    private int CalculateRunScore()
+    {
+        return (int)_distance + _coins * CoinsScoreWeight + _boosters * BoostScoreWeight + _bossSurvivalBonus;
+    }
+
+    // True while the stage 3 boss has control of the run.
+    private bool IsBossEncounterActive()
+    {
+        return _bossIntroActive || _bossFightActive;
+    }
+
+    // Resets the stage 3 boss state for a fresh run.
+    private void ResetBossEncounter()
+    {
+        _bossAttacks.Clear();
+        _bossEncounterStarted = false;
+        _bossIntroActive = false;
+        _bossFightActive = false;
+        _bossDefeated = false;
+        _bossIntroTimer = 0f;
+        _bossFightTimer = 0f;
+        _bossAttackTimer = 0f;
+        _bossSurvivalBonus = 0;
+    }
+
+    // Starts the stage 3 boss arrival screen when the runner enters the boss tile area.
+    private void StartBossEncounter()
+    {
+        if (_bossEncounterStarted)
+        {
+            return;
+        }
+
+        _bossEncounterStarted = true;
+        _bossIntroActive = true;
+        _bossIntroTimer = BossIntroDuration;
+        _bossAttacks.Clear();
+        _ropeTimer = 0f;
+        _scoreBoostTimer = 0f;
+
+        foreach (Tile tile in _activeStageData.World.AllTiles.Where(tile => tile.Content == TileContent.Boss))
+        {
+            tile.Content = TileContent.Empty;
+        }
+    }
+
+    // Advances the boss intro, timed fight, and projectile/object attacks.
+    private void UpdateBossEncounter(float deltaSeconds)
+    {
+        if (_bossIntroActive)
+        {
+            _bossIntroTimer -= deltaSeconds;
+            if (_bossIntroTimer <= 0f)
+            {
+                StartBossFight();
+            }
+        }
+
+        if (!_bossFightActive)
+        {
+            return;
+        }
+
+        _bossFightTimer -= deltaSeconds;
+        _bossAttackTimer -= deltaSeconds;
+
+        if (_bossAttackTimer <= 0f)
+        {
+            SpawnBossAttack();
+            _bossAttackTimer = BossAttackMinInterval + (float)_runRandom.NextDouble() * (BossAttackMaxInterval - BossAttackMinInterval);
+        }
+
+        UpdateBossAttacks(deltaSeconds);
+        if (_screen != GameScreen.Playing)
+        {
+            return;
+        }
+
+        if (_bossFightTimer <= 0f)
+        {
+            CompleteBossFight();
+        }
+    }
+
+    // Freezes scrolling and starts the timed survival battle.
+    private void StartBossFight()
+    {
+        _bossIntroActive = false;
+        _bossFightActive = true;
+        _bossFightTimer = BossFightDuration;
+        _bossAttackTimer = BossAttackInitialDelay;
+    }
+
+    // Marks the boss as beaten and clears stage 3 immediately.
+    private void CompleteBossFight()
+    {
+        _bossFightActive = false;
+        _bossDefeated = true;
+        _bossSurvivalBonus = BossSurvivalScoreBonus;
+        _bossAttacks.Clear();
+        _score = CalculateRunScore();
+        _runWon = true;
+        _gameOverTitle = "Stage Clear";
+        _gameOverDetail = $"Score {_score}";
+        SaveStageProgress();
+        _screen = GameScreen.GameOver;
+    }
+
+    // Creates one boss attack in a random lane.
+    private void SpawnBossAttack()
+    {
+        BossAttackKind kind = _runRandom.NextDouble() < 0.52 ? BossAttackKind.Spear : BossAttackKind.Boulder;
+        int row = _runRandom.Next(Constants.FrontLayer, Constants.BackLayer + 1);
+        float scale = _rowDepthMapper.GetScale(row);
+        float groundY = _rowDepthMapper.GetGroundY(row);
+        float y = kind == BossAttackKind.Spear ? groundY - 118f * scale : groundY - 72f * scale;
+        float speed = kind == BossAttackKind.Spear ? 620f : 470f;
+
+        _bossAttacks.Add(new BossAttack(kind, row, new Vector2(WindowWidth - 330f, y), speed));
+    }
+
+    // Moves boss attacks and applies damage if the player misses the correct dodge.
+    private void UpdateBossAttacks(float deltaSeconds)
+    {
+        for (int i = _bossAttacks.Count - 1; i >= 0; i--)
+        {
+            BossAttack attack = _bossAttacks[i];
+            attack.Position = new Vector2(attack.Position.X - attack.Speed * deltaSeconds, attack.Position.Y);
+            Vector2 size = GetBossAttackSize(attack);
+
+            bool overlapsRunner = attack.Position.X < RunnerX + PlayerCollisionWidth && attack.Position.X + size.X > RunnerX - PlayerCollisionWidth;
+            if (!attack.HasCheckedCollision && overlapsRunner && attack.Row == _playerRow)
+            {
+                bool avoided = attack.Kind == BossAttackKind.Spear ? _slideTimer > 0f : _playerJumpOffset >= 56f;
+                if (!avoided)
+                {
+                    DamagePlayer();
+                    if (_screen != GameScreen.Playing)
+                    {
+                        return;
+                    }
+                }
+
+                attack.HasCheckedCollision = true;
+            }
+
+            if (attack.Position.X + size.X < -40f)
+            {
+                _bossAttacks.RemoveAt(i);
+            }
+        }
+    }
+
+    // Returns screen-space attack dimensions with lane-depth scaling.
+    private Vector2 GetBossAttackSize(BossAttack attack)
+    {
+        float scale = _rowDepthMapper.GetScale(attack.Row);
+        return attack.Kind == BossAttackKind.Spear
+            ? new Vector2(160f * scale, 30f * scale)
+            : new Vector2(72f * scale, 72f * scale);
+    }
+
     // Checks the runner against nearby tile content and applies pickups or damage.
     private void ResolveGridInteractions()
     {
@@ -745,8 +953,10 @@ public partial class Game1
                     }
                     tile.Content = TileContent.Empty;
                     break;
-                case TileContent.Obstacle:
                 case TileContent.Boss:
+                    StartBossEncounter();
+                    break;
+                case TileContent.Obstacle:
                     if (_playerJumpOffset < 56f)
                     {
                         DamagePlayer();
@@ -767,7 +977,7 @@ public partial class Game1
     // Applies damage, temporary invulnerability, and the transition to game over.
     private void DamagePlayer()
     {
-        if (_invulnerableTimer > 0f || _ropeTimer > 0f)
+        if (_invulnerableTimer > 0f || (_ropeTimer > 0f && !IsBossEncounterActive()))
         {
             return;
         }
@@ -845,7 +1055,8 @@ public partial class Game1
                     continue;
                 }
 
-                int y = originY + row * (cell + 18);
+                int displayRow = _activeStageData.World.Rows - 1 - row;
+                int y = originY + displayRow * (cell + 18);
                 Color baseColor = tile.Type switch
                 {
                     TileType.Branch => new Color(72, 135, 102),
@@ -871,11 +1082,12 @@ public partial class Game1
         }
 
         int playerX = (int)(originX + RunnerX * (cell / GameplayTileSpacing));
-        int playerY = originY + _playerRow * (cell + 18);
+        int playerDisplayRow = _activeStageData.World.Rows - 1 - _playerRow;
+        int playerY = originY + playerDisplayRow * (cell + 18);
         _spriteBatch.Draw(_pixel, new Rectangle(playerX, playerY, tileSize, tileSize), Color.Gold);
-        PixelFont.Draw(_spriteBatch, _pixel, "ROW 1", 28, originY + 8, 2, Color.White);
+        PixelFont.Draw(_spriteBatch, _pixel, "ROW 3", 28, originY + 8, 2, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, "ROW 2", 28, originY + cell + 26, 2, Color.White);
-        PixelFont.Draw(_spriteBatch, _pixel, "ROW 3", 28, originY + (cell + 18) * 2 + 8, 2, Color.White);
+        PixelFont.Draw(_spriteBatch, _pixel, "ROW 1", 28, originY + (cell + 18) * 2 + 8, 2, Color.White);
     }
 
     // Converts a stage grid column into the current screen-space x position.
@@ -938,6 +1150,11 @@ public partial class Game1
     // Converts the final score into a bronze, silver, or gold star count.
     private int CalculateStarRating(int score)
     {
+        if (_activeStage.Number == BossStageNumber && !_bossDefeated)
+        {
+            return 0;
+        }
+
         if (score >= _activeStage.GoldScore)
         {
             return 3;

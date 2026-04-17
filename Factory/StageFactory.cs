@@ -54,9 +54,17 @@ public sealed class StageFactory
 
         if (definition.Number == 3)
         {
-            Tile bossTile = world.GetTile(world.Columns - 6, Constants.MiddleLayer);
-            bossTile.Content = TileContent.Boss;
-            bossTile.Type = TileType.Hazard;
+            const int bossAreaColumns = 3;
+            int bossStartColumn = world.Columns - 6;
+            for (int column = bossStartColumn; column < bossStartColumn + bossAreaColumns; column++)
+            {
+                for (int row = 0; row < world.Rows; row++)
+                {
+                    Tile bossTile = world.GetTile(column, row);
+                    bossTile.Content = TileContent.Boss;
+                    bossTile.Type = TileType.Hazard;
+                }
+            }
         }
 
         return world;

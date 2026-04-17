@@ -193,6 +193,7 @@ public partial class Game1 : Game
                 {
                     DrawTopView();
                 }
+                DrawBossEncounter();
                 DrawHud();
                 break;
             case GameScreen.GameOver:
