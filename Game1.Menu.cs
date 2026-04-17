@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -12,6 +13,49 @@ public partial class Game1
     private const float SpawnScreenOffset = 620f;
     private const float PlayerCollisionWidth = 64f;
     private const int MaxUserIdLength = 16;
+    private const int BossStageNumber = 3;
+    private const int BossApproachColumns = 10;
+    private const int BossSurvivalScoreBonus = 1600;
+    private const float BossIntroDuration = 2.4f;
+    private const float BossFightDuration = 18f;
+    private const float BossAttackInitialDelay = 0.75f;
+    private const float BossAttackMinInterval = 0.55f;
+    private const float BossAttackMaxInterval = 1.05f;
+    private const string BossName = "THE SUNKEN IDOL";
+
+    #pragma warning disable CS0169 // Reserved for the upcoming stage 3 boss encounter.
+    private readonly List<BossAttack> _bossAttacks = [];
+    private bool _bossEncounterStarted;
+    private bool _bossIntroActive;
+    private bool _bossFightActive;
+    private float _bossIntroTimer;
+    private float _bossFightTimer;
+    private float _bossAttackTimer;
+    private int _bossSurvivalBonus;
+    #pragma warning restore CS0169
+
+    private enum BossAttackKind
+    {
+        Spear,
+        Boulder
+    }
+
+    private sealed class BossAttack
+    {
+        public BossAttack(BossAttackKind kind, int row, Vector2 position, float speed)
+        {
+            Kind = kind;
+            Row = row;
+            Position = position;
+            Speed = speed;
+        }
+
+        public BossAttackKind Kind { get; }
+        public int Row { get; }
+        public Vector2 Position { get; set; }
+        public float Speed { get; }
+        public bool HasCheckedCollision { get; set; }
+    }
 
     // Loads local save data and guarantees the user dictionary is ready to use.
     private void LoadSaveFile()

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -13,12 +12,10 @@ public partial class Game1 : Game
 {
     private const int WindowWidth = 1280;
     private const int WindowHeight = 720;
-    private const float SegmentWidth = 1200f;
     private const float RunnerX = 210f;
     private const float Gravity = 2200f;
     private const float JumpVelocity = -760f;
     private const float DoubleJumpVelocity = -650f;
-    private const float ForegroundGroundY = 610f;
     private const int CoinsScoreWeight = 45;
     private const int BoostScoreWeight = 180;
     private const float MenuKeyRepeatInitialDelay = 0.28f;
