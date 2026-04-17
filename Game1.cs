@@ -21,6 +21,9 @@ public partial class Game1 : Game
     private const float MenuKeyRepeatInitialDelay = 0.28f;
     private const float MenuKeyRepeatInterval = 0.09f;
     private const float RunnerFrameTime = 0.14f;
+    private const float DamageFlashDuration = 0.18f;
+    private const float DamageShakeDuration = 0.22f;
+    private const float DamageShakeMagnitude = 7f;
 
     private readonly GraphicsDeviceManager _graphics;
     private readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
@@ -32,6 +35,12 @@ public partial class Game1 : Game
     private Texture2D[] _stageSelectBackgrounds = [];
     private Texture2D[] _gameplayBackgrounds = [];
     private Texture2D _coinTexture = null!;
+    private Texture2D _extraLifeTexture = null!;
+    private Texture2D _shieldTexture = null!;
+    private Texture2D _mysteryBoxTexture = null!;
+    private Texture2D _obstacleTexture = null!;
+    private Texture2D _stageArrowTexture = null!;
+    private Texture2D _bossArrowTexture = null!;
     private Texture2D[] _playerRunFrames = [];
     private SpriteFont _minecraftFont = null!;
     private KeyboardState _previousKeyboard;
@@ -52,7 +61,7 @@ public partial class Game1 : Game
     private float _menuUpRepeatTimer;
     private float _menuDownRepeatTimer;
 
-    private readonly string[] _mainMenuOptions = ["Start Game", "Sound", "Logout"];
+    private readonly string[] _mainMenuOptions = ["Start Game", "How to Play", "Sound", "Logout"];
     private readonly StageDefinition[] _stages =
     [
         new(1, "Overgrown Gate", "Broken stone, low traps, safer routes.", 1650, 2500, 3350),
@@ -81,9 +90,13 @@ public partial class Game1 : Game
     private float _runAnimationTimer;
     private float _scoreBoostTimer;
     private float _invulnerableTimer;
+    private float _damageFlashTimer;
+    private float _screenShakeTimer;
     private int _lives;
     private int _coins;
     private int _boosters;
+    private int _stageItemShieldCharges;
+    private int _ropeItemCharges;
     private int _score;
     private bool _runWon;
     private int _playerRow = Constants.MiddleLayer;
@@ -130,7 +143,13 @@ public partial class Game1 : Game
             Content.Load<Texture2D>("jungle_runners_stage2"),
             Content.Load<Texture2D>("jungle_runners_stage3")
         ];
-        _coinTexture = Content.Load<Texture2D>("Untitled_Artwork");
+        _coinTexture = Content.Load<Texture2D>("stage_coin");
+        _extraLifeTexture = Content.Load<Texture2D>("stage_extra_life");
+        _shieldTexture = Content.Load<Texture2D>("stage_shield");
+        _mysteryBoxTexture = Content.Load<Texture2D>("stage_mystery_box");
+        _obstacleTexture = Content.Load<Texture2D>("stage_obstacle");
+        _stageArrowTexture = Content.Load<Texture2D>("stage_arrow");
+        _bossArrowTexture = Content.Load<Texture2D>("boss_arrow");
         _playerRunFrames =
         [
             Content.Load<Texture2D>("player_1"),
@@ -158,6 +177,9 @@ public partial class Game1 : Game
             case GameScreen.StageSelect:
                 UpdateStageSelect(keyboard);
                 break;
+            case GameScreen.HowToPlay:
+                UpdateHowToPlay(keyboard);
+                break;
             case GameScreen.Playing:
                 UpdatePlaying(keyboard, deltaSeconds);
                 break;
@@ -174,7 +196,12 @@ public partial class Game1 : Game
     protected override void Draw(GameTime gameTime)
     {
         GraphicsDevice.Clear(new Color(11, 45, 37));
-        _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+        Vector2 screenShakeOffset = _screen == GameScreen.Playing ? GetScreenShakeOffset() : Vector2.Zero;
+        Matrix transformMatrix = _screen == GameScreen.Playing
+            ? Matrix.CreateTranslation(screenShakeOffset.X, screenShakeOffset.Y, 0f)
+            : Matrix.Identity;
+
+        _spriteBatch.Begin(samplerState: SamplerState.PointClamp, transformMatrix: transformMatrix);
 
         switch (_screen)
         {
@@ -183,6 +210,9 @@ public partial class Game1 : Game
                 break;
             case GameScreen.StageSelect:
                 DrawStageSelect();
+                break;
+            case GameScreen.HowToPlay:
+                DrawHowToPlay();
                 break;
             case GameScreen.Playing:
                 if (_viewMode == ViewMode.Front)
@@ -202,6 +232,14 @@ public partial class Game1 : Game
         }
 
         _spriteBatch.End();
+
+        if (_screen == GameScreen.Playing && _damageFlashTimer > 0f)
+        {
+            _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+            DrawDamageFlash();
+            _spriteBatch.End();
+        }
+
         base.Draw(gameTime);
     }
 }

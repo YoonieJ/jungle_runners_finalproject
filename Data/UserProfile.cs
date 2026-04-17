@@ -10,6 +10,6 @@ public sealed class UserProfile
     public SettingsData Settings { get; set; } = new();
     public Dictionary<int, StageProgress> StageProgress { get; set; } = [];
     public Dictionary<int, int> TopScores { get; set; } = [];
-    public HashSet<string> CollectedItems { get; set; } = [];
+    public HashSet<string> OwnedOutOfStageItems { get; set; } = [];
     public List<ScoreEntry> Scores { get; set; } = [];
 }

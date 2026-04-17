@@ -21,8 +21,15 @@ public partial class Game1
     private const float BossAttackMinInterval = 0.55f;
     private const float BossAttackMaxInterval = 1.05f;
     private const string BossName = "THE SUNKEN IDOL";
+    private const float MapProjectileActivationPadding = 220f;
+    private const float MapProjectileCollisionWidth = 56f;
+    private const float MapProjectileStandardSpeed = 520f;
+    private const float MapProjectileHomingSpeed = 430f;
+    private const float MapProjectileHomingInterval = 0.42f;
 
     private readonly List<BossAttack> _bossAttacks = [];
+    private readonly List<MapProjectile> _mapProjectiles = [];
+    private readonly HashSet<string> _activatedProjectileTiles = [];
     private bool _bossEncounterStarted;
     private bool _bossIntroActive;
     private bool _bossFightActive;
@@ -31,29 +38,6 @@ public partial class Game1
     private float _bossFightTimer;
     private float _bossAttackTimer;
     private int _bossSurvivalBonus;
-
-    private enum BossAttackKind
-    {
-        Spear,
-        Boulder
-    }
-
-    private sealed class BossAttack
-    {
-        public BossAttack(BossAttackKind kind, int row, Vector2 position, float speed)
-        {
-            Kind = kind;
-            Row = row;
-            Position = position;
-            Speed = speed;
-        }
-
-        public BossAttackKind Kind { get; }
-        public int Row { get; }
-        public Vector2 Position { get; set; }
-        public float Speed { get; }
-        public bool HasCheckedCollision { get; set; }
-    }
 
     // Loads local save data and guarantees the user dictionary is ready to use.
     private void LoadSaveFile()
@@ -86,13 +70,12 @@ public partial class Game1
         user.Settings ??= new SettingsData();
         user.StageProgress ??= [];
         user.TopScores ??= [];
-        user.CollectedItems ??= [];
+        user.OwnedOutOfStageItems ??= [];
         user.Scores ??= [];
 
         foreach ((int stageNumber, StageProgress progress) in user.StageProgress)
         {
             progress.StageNumber = progress.StageNumber == 0 ? stageNumber : progress.StageNumber;
-            progress.ItemsCollected ??= [];
 
             if (!user.TopScores.ContainsKey(stageNumber))
             {
@@ -131,6 +114,10 @@ public partial class Game1
             }
             else if (_mainMenuSelection == 1)
             {
+                _screen = GameScreen.HowToPlay;
+            }
+            else if (_mainMenuSelection == 2)
+            {
                 ToggleSound();
             }
             else
@@ -143,6 +130,15 @@ public partial class Game1
                 _menuMessage = "Enter user id, then press Enter.";
                 SaveSaveFile();
             }
+        }
+    }
+
+    // Returns from the controls/help page to the main menu.
+    private void UpdateHowToPlay(KeyboardState keyboard)
+    {
+        if (IsNewKeyPress(keyboard, Keys.Enter) || IsNewKeyPress(keyboard, Keys.Escape))
+        {
+            _screen = GameScreen.MainMenu;
         }
     }
 
@@ -208,19 +204,12 @@ public partial class Game1
             return;
         }
 
+        _viewMode = keyboard.IsKeyDown(Keys.V) ? ViewMode.Top : ViewMode.Front;
+
         if (_awaitingRouteChoice)
         {
             UpdateRouteChoice(keyboard);
             return;
-        }
-
-        if (IsNewKeyPress(keyboard, Keys.V) || IsNewKeyPress(keyboard, Keys.Tab))
-        {
-            _viewMode = _viewMode == ViewMode.Front ? ViewMode.Top : ViewMode.Front;
-            if (_currentUser is not null)
-            {
-                _currentUser.Settings.ViewMode = _viewMode;
-            }
         }
 
         if (IsNewKeyPress(keyboard, Keys.M))
@@ -257,11 +246,11 @@ public partial class Game1
             _slideTimer = 0.55f;
         }
 
-        if (IsNewKeyPress(keyboard, Keys.R) && _ropeTimer <= 0f && !IsBossEncounterActive())
+        if (IsNewKeyPress(keyboard, Keys.R) && _ropeTimer <= 0f && _ropeItemCharges > 0 && !IsBossEncounterActive())
         {
+            _ropeItemCharges--;
             _ropeTimer = 1.8f;
             _scoreBoostTimer = 1.8f;
-            _boosters++;
         }
 
         UpdatePlayerActionTimers(deltaSeconds);
@@ -272,6 +261,13 @@ public partial class Game1
         _distance = _worldScroller.OffsetX;
         _segmentProgress += _worldScroller.Speed * deltaSeconds;
         UpdateBossEncounter(deltaSeconds);
+        if (_screen != GameScreen.Playing)
+        {
+            return;
+        }
+
+        ActivateVisibleMapProjectiles();
+        UpdateMapProjectiles(deltaSeconds);
         if (_screen != GameScreen.Playing)
         {
             return;
@@ -360,9 +356,34 @@ public partial class Game1
             string clearedText = progress.IsCompleted ? "CLEARED" : "NOT CLEARED YET";
             PixelFont.Draw(_spriteBatch, _pixel, clearedText, 100, 345, 3, progress.IsCompleted ? Color.Gold : Color.White);
             PixelFont.Draw(_spriteBatch, _pixel, $"BEST {progress.BestScore}  STARS {progress.StarRating}", 100, 385, 3, Color.White);
-            PixelFont.Draw(_spriteBatch, _pixel, $"ITEMS {progress.ItemsCollected.Count}", 100, 425, 3, Color.White);
         }
         PixelFont.Draw(_spriteBatch, _pixel, "LEFT/RIGHT CHOOSE  ENTER START  ESC MENU", 100, 610, 3, Color.White);
+    }
+
+    // Draws controls, item rules, and survival tips from the main menu.
+    private void DrawHowToPlay()
+    {
+        _spriteBatch.Draw(_mainMenuBackground, new Rectangle(0, 0, WindowWidth, WindowHeight), Color.White);
+        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, WindowWidth, WindowHeight), Color.Black * 0.45f);
+
+        PixelFont.Draw(_spriteBatch, _pixel, "HOW TO PLAY", 95, 70, 7, Color.Gold);
+        PixelFont.Draw(_spriteBatch, _pixel, "RUN THROUGH THE JUNGLE AND CLEAR EACH STAGE", 100, 155, 3, Color.White);
+
+        PixelFont.Draw(_spriteBatch, _pixel, "CONTROLS", 100, 225, 4, Color.LightGreen);
+        PixelFont.Draw(_spriteBatch, _pixel, "LEFT/RIGHT MOVE ROWS", 130, 285, 3, Color.White);
+        PixelFont.Draw(_spriteBatch, _pixel, "SPACE JUMP AND DOUBLE JUMP", 130, 325, 3, Color.White);
+        PixelFont.Draw(_spriteBatch, _pixel, "DOWN SLIDE UNDER ARROWS", 130, 365, 3, Color.White);
+        PixelFont.Draw(_spriteBatch, _pixel, "HOLD V TOP VIEW", 130, 405, 3, Color.White);
+
+        PixelFont.Draw(_spriteBatch, _pixel, "ITEMS", 610, 225, 4, Color.LightGreen);
+        PixelFont.Draw(_spriteBatch, _pixel, "COINS ADD SCORE", 640, 285, 3, Color.White);
+        PixelFont.Draw(_spriteBatch, _pixel, "SHIELDS BLOCK ONE HIT", 640, 325, 3, Color.White);
+        PixelFont.Draw(_spriteBatch, _pixel, "ROPE ITEM LETS YOU USE R ONCE", 640, 365, 3, Color.White);
+        PixelFont.Draw(_spriteBatch, _pixel, "ROPE IS USED UP AFTER ACTIVATING", 640, 405, 3, Color.White);
+
+        PixelFont.Draw(_spriteBatch, _pixel, "WATCH FOR MULTI ROW OBSTACLES", 100, 500, 3, Color.Orange);
+        PixelFont.Draw(_spriteBatch, _pixel, "STAGE 3 HAS A BOSS: SLIDE SPEARS AND JUMP BOULDERS", 100, 545, 3, Color.White);
+        PixelFont.Draw(_spriteBatch, _pixel, "ENTER OR ESC BACK", 100, 630, 3, Color.Gold);
     }
 
     // Draws the side-view prototype using colored rectangles for lanes, contents, and the player.
@@ -387,11 +408,13 @@ public partial class Game1
             }
         }
 
+        DrawMapProjectilesFront();
+
         float playerScale = _rowDepthMapper.GetScale(_playerRow);
         float playerHeight = _slideTimer > 0f ? 92f * playerScale : 176f * playerScale;
         float playerWidth = 92f * playerScale;
         float playerY = _rowDepthMapper.GetGroundY(_playerRow) - playerHeight - _playerJumpOffset;
-        Color playerColor = _invulnerableTimer > 0f ? Color.LightPink : Color.White;
+        Color playerColor = GetPlayerDamageBlinkColor();
         Texture2D playerTexture = GetPlayerRunFrame();
         _spriteBatch.Draw(playerTexture, new Rectangle((int)RunnerX, (int)playerY, (int)playerWidth, (int)playerHeight), playerColor);
     }
@@ -401,6 +424,7 @@ public partial class Game1
     {
         DrawGameplayBackground();
         DrawTopGrid();
+        DrawMapProjectilesTop();
         PixelFont.Draw(_spriteBatch, _pixel, "TOP VIEW SAME GRID", 60, 620, 4, Color.White);
     }
 
@@ -410,9 +434,11 @@ public partial class Game1
         PixelFont.Draw(_spriteBatch, _pixel, $"SCORE {_score}", 865, 28, 4, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, $"LIVES {_lives}", 970, 76, 3, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, $"COINS {_coins}", 970, 110, 3, Color.White);
-        PixelFont.Draw(_spriteBatch, _pixel, _soundEnabled ? "SOUND ON" : "SOUND OFF", 970, 144, 3, Color.White);
+        PixelFont.Draw(_spriteBatch, _pixel, $"ROPES {_ropeItemCharges}", 970, 144, 3, Color.White);
+        PixelFont.Draw(_spriteBatch, _pixel, $"SHIELDS {_stageItemShieldCharges}", 970, 178, 3, Color.White);
+        PixelFont.Draw(_spriteBatch, _pixel, _soundEnabled ? "SOUND ON" : "SOUND OFF", 970, 212, 3, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, "SPACE JUMP  DOWN SLIDE  R ROPE", 36, 28, 3, Color.White);
-        PixelFont.Draw(_spriteBatch, _pixel, "V VIEW  M SOUND  LEFT/RIGHT ROW", 36, 62, 3, Color.White);
+        PixelFont.Draw(_spriteBatch, _pixel, "HOLD V TOP VIEW  M SOUND  LEFT/RIGHT ROW", 36, 62, 3, Color.White);
 
         if (_awaitingRouteChoice && _activeStageData.CurrentNode is not null)
         {
@@ -446,9 +472,9 @@ public partial class Game1
         foreach (BossAttack attack in _bossAttacks)
         {
             Vector2 size = GetBossAttackSize(attack);
-            Color attackColor = attack.Kind == BossAttackKind.Spear ? Color.OrangeRed : Color.DarkRed;
             Rectangle attackBounds = new((int)attack.Position.X, (int)attack.Position.Y, (int)size.X, (int)size.Y);
-            _spriteBatch.Draw(_pixel, attackBounds, attackColor);
+            Texture2D attackTexture = attack.Kind == BossAttackKind.Spear ? _bossArrowTexture : _obstacleTexture;
+            DrawTextureInBounds(attackTexture, attackBounds, Color.White);
         }
 
         PixelFont.Draw(_spriteBatch, _pixel, $"{BossName} {MathF.Ceiling(_bossFightTimer)}", 220, 120, 4, Color.Gold);
@@ -513,12 +539,17 @@ public partial class Game1
         _ropeTimer = 0f;
         _scoreBoostTimer = 0f;
         _invulnerableTimer = 0f;
+        _damageFlashTimer = 0f;
+        _screenShakeTimer = 0f;
         _runAnimationTimer = 0f;
         _lives = 3;
         _coins = 0;
         _boosters = 0;
+        _stageItemShieldCharges = 0;
+        _ropeItemCharges = 0;
         _score = 0;
         _collectedItemsThisRun.Clear();
+        ResetMapProjectiles();
         _runWon = false;
         _awaitingRouteChoice = false;
         _routeChoiceIndex = 0;
@@ -626,7 +657,7 @@ public partial class Game1
         _saveFile.LastUserId = _currentUser.UserId;
         _soundEnabled = _currentUser.Settings.SoundEnabled;
         _selectedDifficulty = _currentUser.Settings.Difficulty;
-        _viewMode = _currentUser.Settings.ViewMode;
+        _viewMode = ViewMode.Front;
         _menuFocus = MenuFocus.Options;
         _menuMessage = isNewUser ? $"Created profile {_currentUser.UserId}." : $"Loaded profile {_currentUser.UserId}.";
         SaveSaveFile();
@@ -693,8 +724,7 @@ public partial class Game1
         progress.StarRating = System.Math.Max(progress.StarRating, attemptStarRating);
         foreach (string itemId in _collectedItemsThisRun)
         {
-            progress.ItemsCollected.Add(itemId);
-            _currentUser.CollectedItems.Add(itemId);
+            _currentUser.OwnedOutOfStageItems.Add(itemId);
         }
         _currentUser.TopScores[_activeStage.Number] = progress.BestScore;
         _currentUser.BestScore = System.Math.Max(_currentUser.BestScore, _score);
@@ -740,6 +770,8 @@ public partial class Game1
         _ropeTimer = System.Math.Max(0f, _ropeTimer - deltaSeconds);
         _scoreBoostTimer = System.Math.Max(0f, _scoreBoostTimer - deltaSeconds);
         _invulnerableTimer = System.Math.Max(0f, _invulnerableTimer - deltaSeconds);
+        _damageFlashTimer = System.Math.Max(0f, _damageFlashTimer - deltaSeconds);
+        _screenShakeTimer = System.Math.Max(0f, _screenShakeTimer - deltaSeconds);
     }
 
     // Returns the current score including the stage 3 boss survival bonus when earned.
@@ -905,6 +937,162 @@ public partial class Game1
             : new Vector2(72f * scale, 72f * scale);
     }
 
+    // Clears normal map projectile state between stage attempts.
+    private void ResetMapProjectiles()
+    {
+        _mapProjectiles.Clear();
+        _activatedProjectileTiles.Clear();
+    }
+
+    // Converts projectile tile markers into active flying hazards as they enter the camera.
+    private void ActivateVisibleMapProjectiles()
+    {
+        if (IsBossEncounterActive())
+        {
+            return;
+        }
+
+        foreach (Tile tile in _activeStageData.World.AllTiles)
+        {
+            if (tile.Content is not (TileContent.Projectile or TileContent.HomingProjectile))
+            {
+                continue;
+            }
+
+            float x = GetTileScreenX(tile.Column);
+            if (x > WindowWidth + MapProjectileActivationPadding || x < RunnerX - PlayerCollisionWidth)
+            {
+                continue;
+            }
+
+            string tileKey = $"{tile.Column}:{tile.Row}";
+            if (!_activatedProjectileTiles.Add(tileKey))
+            {
+                continue;
+            }
+
+            float speed = tile.Content == TileContent.HomingProjectile ? MapProjectileHomingSpeed : MapProjectileStandardSpeed;
+            _mapProjectiles.Add(new MapProjectile(tile.Content, tile.Row, new Vector2(x, GetMapProjectileY(tile.Row, tile.Content)), speed, MapProjectileHomingInterval));
+            tile.Content = TileContent.Empty;
+        }
+    }
+
+    // Moves active map projectiles toward the runner, including homing lane changes.
+    private void UpdateMapProjectiles(float deltaSeconds)
+    {
+        if (IsBossEncounterActive())
+        {
+            _mapProjectiles.Clear();
+            return;
+        }
+
+        for (int i = _mapProjectiles.Count - 1; i >= 0; i--)
+        {
+            MapProjectile projectile = _mapProjectiles[i];
+            projectile.Position = new Vector2(projectile.Position.X - projectile.Speed * deltaSeconds, GetMapProjectileY(projectile.Row, projectile.Kind));
+
+            if (projectile.Kind == TileContent.HomingProjectile)
+            {
+                projectile.RowShiftTimer -= deltaSeconds;
+                if (projectile.RowShiftTimer <= 0f)
+                {
+                    projectile.RowShiftTimer = MapProjectileHomingInterval;
+                    projectile.Row += System.Math.Sign(_playerRow - projectile.Row);
+                    projectile.Row = System.Math.Clamp(projectile.Row, Constants.FrontLayer, Constants.BackLayer);
+                }
+            }
+
+            Vector2 size = GetMapProjectileSize(projectile);
+            bool overlapsRunner = projectile.Position.X < RunnerX + MapProjectileCollisionWidth
+                && projectile.Position.X + size.X > RunnerX - MapProjectileCollisionWidth;
+            if (!projectile.HasCheckedCollision && overlapsRunner && projectile.Row == _playerRow)
+            {
+                bool avoided = projectile.Kind == TileContent.Projectile ? _slideTimer > 0f : _playerJumpOffset >= 56f;
+                if (!avoided)
+                {
+                    DamagePlayer();
+                    if (_screen != GameScreen.Playing)
+                    {
+                        return;
+                    }
+                }
+
+                projectile.HasCheckedCollision = true;
+            }
+
+            if (projectile.Position.X + size.X < -40f)
+            {
+                _mapProjectiles.RemoveAt(i);
+            }
+        }
+    }
+
+    // Draws active flying map projectiles in front-view lane space.
+    private void DrawMapProjectilesFront()
+    {
+        foreach (MapProjectile projectile in _mapProjectiles.OrderByDescending(projectile => projectile.Row))
+        {
+            Vector2 size = GetMapProjectileSize(projectile);
+            Rectangle bounds = new((int)projectile.Position.X, (int)projectile.Position.Y, (int)size.X, (int)size.Y);
+            Texture2D? texture = GetTileContentTexture(projectile.Kind);
+            if (texture is null)
+            {
+                _spriteBatch.Draw(_pixel, bounds, GetMapProjectileColor(projectile));
+            }
+            else
+            {
+                DrawTextureInBounds(texture, bounds, Color.White);
+            }
+        }
+    }
+
+    // Draws active flying map projectiles in top-view grid space.
+    private void DrawMapProjectilesTop()
+    {
+        const int originY = 190;
+        const int cell = 104;
+        const int projectileSize = 44;
+
+        foreach (MapProjectile projectile in _mapProjectiles)
+        {
+            int displayRow = _activeStageData.World.Rows - 1 - projectile.Row;
+            int y = originY + displayRow * (cell + 18) + (100 - projectileSize) / 2;
+            Rectangle bounds = new((int)projectile.Position.X, y, projectileSize, projectileSize);
+            Texture2D? texture = GetTileContentTexture(projectile.Kind);
+            if (texture is null)
+            {
+                _spriteBatch.Draw(_pixel, bounds, GetMapProjectileColor(projectile));
+            }
+            else
+            {
+                DrawTextureInBounds(texture, bounds, Color.White);
+            }
+        }
+    }
+
+    // Returns the front-view y position for a flying projectile in its current row.
+    private float GetMapProjectileY(int row, TileContent kind)
+    {
+        float scale = _rowDepthMapper.GetScale(row);
+        float groundY = _rowDepthMapper.GetGroundY(row);
+        return kind == TileContent.HomingProjectile ? groundY - 112f * scale : groundY - 92f * scale;
+    }
+
+    // Returns screen-space projectile size with row depth applied.
+    private Vector2 GetMapProjectileSize(MapProjectile projectile)
+    {
+        float scale = _rowDepthMapper.GetScale(projectile.Row);
+        return projectile.Kind == TileContent.HomingProjectile
+            ? new Vector2(74f * scale, 74f * scale)
+            : new Vector2(138f * scale, 30f * scale);
+    }
+
+    // Uses different placeholder colors for straight and homing map projectiles.
+    private static Color GetMapProjectileColor(MapProjectile projectile)
+    {
+        return projectile.Kind == TileContent.HomingProjectile ? Color.Magenta : Color.OrangeRed;
+    }
+
     // Checks the runner against nearby tile content and applies pickups or damage.
     private void ResolveGridInteractions()
     {
@@ -932,21 +1120,30 @@ public partial class Game1
                     break;
                 case TileContent.LifeItem:
                     _lives = System.Math.Min(5, _lives + 1);
-                    TrackCollectedItem(tile);
                     tile.Content = TileContent.Empty;
                     break;
                 case TileContent.ScoreBooster:
                     _boosters++;
                     _scoreBoostTimer = 5f;
-                    TrackCollectedItem(tile);
+                    tile.Content = TileContent.Empty;
+                    break;
+                case TileContent.StageItem:
+                    // Stage items are temporary advantages; they are intentionally not saved.
+                    _stageItemShieldCharges++;
+                    tile.Content = TileContent.Empty;
+                    break;
+                case TileContent.RopeItem:
+                    _ropeItemCharges++;
                     tile.Content = TileContent.Empty;
                     break;
                 case TileContent.Collectible:
                 case TileContent.Item:
+                case TileContent.OutOfStageItem:
                     TrackCollectedItem(tile);
                     tile.Content = TileContent.Empty;
                     break;
                 case TileContent.Projectile:
+                case TileContent.HomingProjectile:
                     if (_slideTimer <= 0f)
                     {
                         DamagePlayer();
@@ -967,7 +1164,7 @@ public partial class Game1
         }
     }
 
-    // Records inventory-style pickups for the run so they can be persisted by stage and user.
+    // Records only non-consumable, out-of-stage placeholder items for the user JSON inventory.
     private void TrackCollectedItem(Tile tile)
     {
         string itemId = $"{tile.Content}-S{_activeStage.Number}-C{tile.Column}-R{tile.Row}";
@@ -982,8 +1179,17 @@ public partial class Game1
             return;
         }
 
+        if (_stageItemShieldCharges > 0)
+        {
+            _stageItemShieldCharges--;
+            _invulnerableTimer = 0.6f;
+            StartDamageFeedback(false);
+            return;
+        }
+
         _lives--;
         _invulnerableTimer = 1.2f;
+        StartDamageFeedback(true);
 
         if (_lives <= 0)
         {
@@ -1009,7 +1215,7 @@ public partial class Game1
                 _ => new Color(30, 88, 67)
             };
 
-            _spriteBatch.Draw(_pixel, new Rectangle(0, (int)(y - 10f * scale), WindowWidth, (int)(70f * scale)), laneColor);
+            _spriteBatch.Draw(_pixel, new Rectangle(0, (int)(y - 10f * scale), WindowWidth, (int)(70f * scale)), laneColor * 0.5f);
         }
     }
 
@@ -1024,9 +1230,10 @@ public partial class Game1
         int y = (int)(groundY - height);
         Rectangle destination = new((int)x, y, width, height);
 
-        if (tile.Content == TileContent.Coin)
+        Texture2D? texture = GetTileContentTexture(tile.Content);
+        if (texture is not null)
         {
-            _spriteBatch.Draw(_coinTexture, destination, Color.White);
+            DrawTextureInBounds(texture, destination, Color.White);
             return;
         }
 
@@ -1065,13 +1272,14 @@ public partial class Game1
                     _ => new Color(30, 94, 64)
                 };
 
-                _spriteBatch.Draw(_pixel, new Rectangle(x, y, tileSize, tileSize), baseColor);
+                _spriteBatch.Draw(_pixel, new Rectangle(x, y, tileSize, tileSize), baseColor * 0.5f);
                 if (tile.HasContent)
                 {
                     Rectangle contentDestination = new(x + contentInset, y + contentInset, contentSize, contentSize);
-                    if (tile.Content == TileContent.Coin)
+                    Texture2D? texture = GetTileContentTexture(tile.Content);
+                    if (texture is not null)
                     {
-                        _spriteBatch.Draw(_coinTexture, contentDestination, Color.White);
+                        DrawTextureInBounds(texture, contentDestination, Color.White);
                     }
                     else
                     {
@@ -1084,7 +1292,7 @@ public partial class Game1
         int playerX = (int)(originX + RunnerX * (cell / GameplayTileSpacing));
         int playerDisplayRow = _activeStageData.World.Rows - 1 - _playerRow;
         int playerY = originY + playerDisplayRow * (cell + 18);
-        _spriteBatch.Draw(_pixel, new Rectangle(playerX, playerY, tileSize, tileSize), Color.Gold);
+        DrawTextureInBounds(GetPlayerRunFrame(), new Rectangle(playerX, playerY, tileSize, tileSize), Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, "ROW 3", 28, originY + 8, 2, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, "ROW 2", 28, originY + cell + 26, 2, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, "ROW 1", 28, originY + (cell + 18) * 2 + 8, 2, Color.White);
@@ -1103,6 +1311,80 @@ public partial class Game1
         return _playerRunFrames[frameIndex];
     }
 
+    // Blinks the runner while damage invulnerability is active.
+    private Color GetPlayerDamageBlinkColor()
+    {
+        if (_invulnerableTimer <= 0f)
+        {
+            return Color.White;
+        }
+
+        int blinkFrame = (int)(_invulnerableTimer * 18f);
+        return blinkFrame % 2 == 0 ? Color.White * 0.35f : Color.LightPink;
+    }
+
+    // Starts a short visual impact cue for either shield blocks or direct damage.
+    private void StartDamageFeedback(bool directHit)
+    {
+        _damageFlashTimer = directHit ? DamageFlashDuration : DamageFlashDuration * 0.55f;
+        _screenShakeTimer = directHit ? DamageShakeDuration : DamageShakeDuration * 0.5f;
+    }
+
+    // Returns a tiny deterministic shake offset while the damage timer is active.
+    private Vector2 GetScreenShakeOffset()
+    {
+        if (_screenShakeTimer <= 0f)
+        {
+            return Vector2.Zero;
+        }
+
+        float strength = _screenShakeTimer / DamageShakeDuration;
+        return new Vector2(
+            MathF.Sin(_screenShakeTimer * 84f) * DamageShakeMagnitude * strength,
+            MathF.Cos(_screenShakeTimer * 67f) * DamageShakeMagnitude * strength);
+    }
+
+    // Draws a fast red wash over the screen after damage.
+    private void DrawDamageFlash()
+    {
+        float alpha = 0.32f * (_damageFlashTimer / DamageFlashDuration);
+        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, WindowWidth, WindowHeight), Color.Red * alpha);
+    }
+
+    // Looks up real sprite art for tile content that has an added asset.
+    private Texture2D? GetTileContentTexture(TileContent content)
+    {
+        return content switch
+        {
+            TileContent.Coin => _coinTexture,
+            TileContent.LifeItem => _extraLifeTexture,
+            TileContent.ScoreBooster => _mysteryBoxTexture,
+            TileContent.StageItem => _shieldTexture,
+            TileContent.RopeItem => _mysteryBoxTexture,
+            TileContent.OutOfStageItem => _mysteryBoxTexture,
+            TileContent.Collectible or TileContent.Item => _mysteryBoxTexture,
+            TileContent.Projectile => _stageArrowTexture,
+            TileContent.HomingProjectile => _bossArrowTexture,
+            TileContent.Obstacle => _obstacleTexture,
+            _ => null
+        };
+    }
+
+    // Draws an asset centered inside a gameplay rectangle without squashing its pixels.
+    private void DrawTextureInBounds(Texture2D texture, Rectangle bounds, Color color)
+    {
+        float scale = System.Math.Min(bounds.Width / (float)texture.Width, bounds.Height / (float)texture.Height);
+        int width = System.Math.Max(1, (int)(texture.Width * scale));
+        int height = System.Math.Max(1, (int)(texture.Height * scale));
+        Rectangle destination = new(
+            bounds.X + (bounds.Width - width) / 2,
+            bounds.Y + (bounds.Height - height) / 2,
+            width,
+            height);
+
+        _spriteBatch.Draw(texture, destination, color);
+    }
+
     // Chooses the placeholder draw color for a tile based on content first, then tile type.
     private Color GetTileColor(Tile tile)
     {
@@ -1111,7 +1393,11 @@ public partial class Game1
             TileContent.Coin => Color.Gold,
             TileContent.LifeItem => Color.LightPink,
             TileContent.ScoreBooster => Color.Cyan,
+            TileContent.StageItem => Color.DeepSkyBlue,
+            TileContent.RopeItem => Color.SandyBrown,
+            TileContent.OutOfStageItem => Color.LightGreen,
             TileContent.Projectile => Color.OrangeRed,
+            TileContent.HomingProjectile => Color.Magenta,
             TileContent.Obstacle => Color.DarkRed,
             TileContent.Boss => Color.Purple,
             TileContent.Collectible or TileContent.Item => Color.LightGreen,
@@ -1127,6 +1413,7 @@ public partial class Game1
         return tile.Content switch
         {
             TileContent.Projectile => 144f,
+            TileContent.HomingProjectile => 88f,
             TileContent.Coin => 68f,
             TileContent.Boss => 236f,
             _ => 124f
@@ -1139,10 +1426,14 @@ public partial class Game1
         return tile.Content switch
         {
             TileContent.Projectile => 36f,
+            TileContent.HomingProjectile => 88f,
             TileContent.Coin => 68f,
             TileContent.Boss => 240f,
             TileContent.ScoreBooster => 88f,
             TileContent.LifeItem => 84f,
+            TileContent.StageItem => 84f,
+            TileContent.RopeItem => 84f,
+            TileContent.OutOfStageItem => 84f,
             _ => 144f
         };
     }
