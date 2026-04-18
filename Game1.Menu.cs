@@ -437,7 +437,7 @@ public partial class Game1
         PixelFont.Draw(_spriteBatch, _pixel, $"COINS {_coins}", 970, 110, 3, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, $"ROPES {_ropeItemCharges}", 970, 144, 3, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, $"SHIELDS {_stageItemShieldCharges}", 970, 178, 3, Color.White);
-        PixelFont.Draw(_spriteBatch, _pixel, _soundEnabled ? "SOUND ON" : "SOUND OFF", 970, 212, 3, Color.White);
+        PixelFont.Draw(_spriteBatch, _pixel, !_audioManager.IsMuted ? "SOUND ON" : "SOUND OFF", 970, 212, 3, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, "SPACE JUMP  DOWN SLIDE  R ROPE", 36, 28, 3, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, "HOLD V TOP VIEW  M SOUND  LEFT/RIGHT ROW", 36, 62, 3, Color.White);
 
@@ -523,9 +523,9 @@ public partial class Game1
     {
         EnsureCurrentUser();
 
-        // TODO: Apply selected difficulty to stage generation, lives, scoring targets, and hazard speed.
+        // Apply selected difficulty to stage generation, lives, scoring targets, and hazard speed.
         _activeStage = _stages[_selectedStage];
-        _activeStageData = _stageFactory.Create(_activeStage);
+        _activeStageData = _stageFactory.Create(_activeStage, _selectedDifficulty);
         _segments = _activeStageData.Segments;
         _activeSegment = _segments[0];
         _activeStageData.CurrentNode = _activeStageData.Graph.Start;
@@ -543,11 +543,17 @@ public partial class Game1
         _damageFlashTimer = 0f;
         _screenShakeTimer = 0f;
         _runAnimationTimer = 0f;
-        _lives = 3;
+        _lives = 4 - (_selectedStage + 1);
         _coins = 0;
         _boosters = 0;
         _stageItemShieldCharges = 0;
         _ropeItemCharges = 0;
+        _score = 0;
+        _runWon = false;
+        _collectedItemsThisRun.Clear();
+        _runRandom = new Random(_activeStage.Number);
+        _screen = GameScreen.Playing;
+        _audioManager.PlaySongForLevel(_selectedStage + 1);
         _score = 0;
         _runWon = false;
         _collectedItemsThisRun.Clear();
@@ -663,7 +669,7 @@ public partial class Game1
         _currentUser = user;
         _saveFile.LastUserId = _currentUser.UserId;
         _soundEnabled = _currentUser.Settings.SoundEnabled;
-        _audioManager.SetMute(!_soundEnabled);
+        if (!_soundEnabled) _audioManager.ToggleMute();
         _selectedDifficulty = _currentUser.Settings.Difficulty;
         _viewMode = ViewMode.Front;
         _menuFocus = MenuFocus.Options;

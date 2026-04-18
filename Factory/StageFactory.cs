@@ -5,12 +5,12 @@ namespace jungle_runners_finalproject;
 public sealed class StageFactory
 {
     // Builds a full stage from its definition, including world tiles and route graph.
-    public Stage Create(StageDefinition definition)
+    public Stage Create(StageDefinition definition, Difficulty difficulty)
     {
         Stage stage = new()
         {
             Definition = definition,
-            World = GenerateWorld(definition)
+            World = GenerateWorld(definition, difficulty)
         };
 
         BuildGraph(stage);
@@ -18,7 +18,7 @@ public sealed class StageFactory
     }
 
     // Generates the prototype stage grid with deterministic pickups, hazards, and branch markers.
-    private static GridWorld GenerateWorld(StageDefinition definition)
+    private static GridWorld GenerateWorld(StageDefinition definition, Difficulty difficulty)
     {
         // TODO: Replace the simple deterministic scatter with authored/data-driven layouts,
         // then tune hazard/reward density by Difficulty.
@@ -32,11 +32,11 @@ public sealed class StageFactory
             int row = ChooseContentRow(random, world.Rows, definition.Number, previousContentRow);
             previousContentRow = row;
             Tile tile = world.GetTile(column, row);
-            tile.Content = RollStageContent(random, definition.Number);
+            tile.Content = RollStageContent(random, definition.Number, difficulty);
 
             if (tile.Content == TileContent.Obstacle)
             {
-                PlaceObstacleCluster(world, random, column, row, definition.Number);
+                PlaceObstacleCluster(world, random, column, row, definition.Number, difficulty);
                 continue;
             }
 
@@ -84,9 +84,17 @@ public sealed class StageFactory
     }
 
     // Chooses pickups and hazards using stage-specific pressure curves.
-    private static TileContent RollStageContent(Random random, int stageNumber)
+    private static TileContent RollStageContent(Random random, int stageNumber, Difficulty difficulty)
     {
         double roll = random.NextDouble();
+
+        // Adjust roll for difficulty: easy favors rewards, hard favors hazards
+        roll = difficulty switch
+        {
+            Difficulty.Easy => roll * 0.85, // Lower roll, more rewards
+            Difficulty.Hard => Math.Min(roll * 1.15, 0.99), // Higher roll, more hazards
+            _ => roll
+        };
 
         return stageNumber switch
         {
@@ -129,7 +137,7 @@ public sealed class StageFactory
     }
 
     // Expands some obstacle rolls into two-row or full-column blocks.
-    private static void PlaceObstacleCluster(GridWorld world, Random random, int column, int anchorRow, int stageNumber)
+    private static void PlaceObstacleCluster(GridWorld world, Random random, int column, int anchorRow, int stageNumber, Difficulty difficulty)
     {
         double shapeRoll = random.NextDouble();
         int rowCount = stageNumber switch
@@ -148,6 +156,12 @@ public sealed class StageFactory
                 _ => 1
             }
         };
+
+        // Increase cluster size for hard difficulty
+        if (difficulty == Difficulty.Hard && rowCount < world.Rows)
+        {
+            rowCount = Math.Min(rowCount + 1, world.Rows);
+        }
 
         int startRow = rowCount switch
         {

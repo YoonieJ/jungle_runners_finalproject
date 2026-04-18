@@ -106,7 +106,7 @@ public partial class Game1 : Game
     private Random _runRandom = new(1);
     private readonly HashSet<string> _collectedItemsThisRun = [];
 
-    private AudioManager _audioManager;
+    private readonly AudioManager _audioManager = new();
 
     // Configures the game window, content root, and base MonoGame settings.
     public Game1()
@@ -124,7 +124,6 @@ public partial class Game1 : Game
     protected override void Initialize()
     {
         LoadSaveFile();
-        _audioManager = new AudioManager();
         base.Initialize();
     }
 

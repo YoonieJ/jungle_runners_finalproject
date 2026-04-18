@@ -9,10 +9,10 @@ public sealed class AudioManager
     public float MusicVolume { get; set; } = 0.8f;
     public float EffectsVolume { get; set; } = 0.9f;
 
-    private Song _startMusic;
-    private Song _easyMusic;
-    private Song _mediumMusic;
-    private Song _hardMusic;
+    private Song? _startMusic;
+    private Song? _easyMusic;
+    private Song? _mediumMusic;
+    private Song? _hardMusic;
 
     public void LoadContent(ContentManager Content)
     {
@@ -44,11 +44,16 @@ public sealed class AudioManager
             }
         }
 
-    // Mutes or unmutes audio. If no explicit state is passed, toggles the current state.
-    public void ToggleMute(bool? muted = null)
+    public void SetMute(bool mute)
     {
-        IsMuted = muted ?? !IsMuted;
+        IsMuted = mute;
         MediaPlayer.Volume = IsMuted ? 0f : MusicVolume;
+    }
+
+    // Flips the global muted state for future music and sound effects.
+    public void ToggleMute()
+    {
+        SetMute(!IsMuted);
     }
 
     // Stops all active audio once songs and effects are wired into the manager.
