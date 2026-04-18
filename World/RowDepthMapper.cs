@@ -9,7 +9,7 @@ public sealed class RowDepthMapper
     public float ClosestGroundY { get; set; } = 610f;
     public float FarthestGroundY { get; set; } = 430f;
     public float ClosestScale { get; set; } = 1.1f;
-    public float FarthestScale { get; set; } = 0.62f;
+    public float FarthestScale { get; set; } = 0.90f;
 
     // Converts a row index into a normalized depth value from closest to farthest.
     public float GetDepth(int row)

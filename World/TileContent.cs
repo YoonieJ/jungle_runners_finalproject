@@ -7,9 +7,13 @@ public enum TileContent
     Coin,
     Collectible,
     Item,
+    OutOfStageItem,
+    StageItem,
     LifeItem,
     ScoreBooster,
     Obstacle,
     Projectile,
-    Boss
+    HomingProjectile,
+    Boss,
+    RopeItem
 }

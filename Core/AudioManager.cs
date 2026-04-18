@@ -25,7 +25,7 @@ public sealed class AudioManager
         {
             effect.Stop();
             effect.Dispose();
-    
+
         }
         _activeEffects.Clear();
     }
@@ -36,7 +36,7 @@ public sealed class AudioManager
         if (IsMuted)
         {
             effect.Volume = 0f;
-        
+
         }
         else
         {

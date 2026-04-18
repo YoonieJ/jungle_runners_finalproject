@@ -16,6 +16,7 @@ public enum GameScreen
 {
     MainMenu,
     Login,
+    HowToPlay,
     StageSelect,
     Playing,
     Pause,

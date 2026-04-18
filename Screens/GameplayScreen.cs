@@ -26,6 +26,7 @@ public sealed class GameplayScreen : IScreen
     private float _scoreBoostTimer;
     private float _invulnerableTimer;
     private int _boosters;
+    private int _ropeItemCharges;
     private int _routeChoiceIndex;
     private bool _hasStarted;
 
@@ -66,6 +67,7 @@ public sealed class GameplayScreen : IScreen
         _scoreBoostTimer = 0f;
         _invulnerableTimer = 0f;
         _boosters = 0;
+        _ropeItemCharges = 0;
         _routeChoiceIndex = 0;
         PlayerRow = _activeSegment?.PreferredRow ?? Constants.MiddleLayer;
         AwaitingRouteChoice = false;
@@ -167,11 +169,11 @@ public sealed class GameplayScreen : IScreen
             Player.State = PlayerState.Sliding;
         }
 
-        if (IsNewKeyPress(keyboard, Keys.R) && _ropeTimer <= 0f)
+        if (IsNewKeyPress(keyboard, Keys.R) && _ropeTimer <= 0f && _ropeItemCharges > 0)
         {
+            _ropeItemCharges--;
             _ropeTimer = RopeDuration;
             _scoreBoostTimer = RopeDuration;
-            _boosters++;
         }
 
         UpdatePlayerActionTimers(deltaSeconds);
@@ -319,6 +321,10 @@ public sealed class GameplayScreen : IScreen
                 case TileContent.ScoreBooster:
                     _boosters++;
                     _scoreBoostTimer = ScoreBoostDuration;
+                    tile.Content = TileContent.Empty;
+                    break;
+                case TileContent.RopeItem:
+                    _ropeItemCharges++;
                     tile.Content = TileContent.Empty;
                     break;
                 case TileContent.Projectile:

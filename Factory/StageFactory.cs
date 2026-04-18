@@ -25,21 +25,22 @@ public sealed class StageFactory
         int columns = Constants.DefaultStageColumns + definition.Number * 8;
         GridWorld world = new(Constants.GameplayRows, columns);
         Random random = new(definition.Number * 997);
+        int previousContentRow = Constants.MiddleLayer;
 
         for (int column = 4; column < world.Columns; column += 3)
         {
-            int row = random.Next(0, world.Rows);
+            int row = ChooseContentRow(random, world.Rows, definition.Number, previousContentRow);
+            previousContentRow = row;
             Tile tile = world.GetTile(column, row);
-            tile.Content = random.NextDouble() switch
-            {
-                < 0.34 => TileContent.Coin,
-                < 0.52 => TileContent.ScoreBooster,
-                < 0.62 => TileContent.LifeItem,
-                < 0.82 => TileContent.Obstacle,
-                _ => TileContent.Projectile
-            };
+            tile.Content = RollStageContent(random, definition.Number);
 
-            if (tile.Content is TileContent.Obstacle or TileContent.Projectile)
+            if (tile.Content == TileContent.Obstacle)
+            {
+                PlaceObstacleCluster(world, random, column, row, definition.Number);
+                continue;
+            }
+
+            if (tile.Content is TileContent.Obstacle or TileContent.Projectile or TileContent.HomingProjectile)
             {
                 tile.Type = TileType.Hazard;
             }
@@ -54,12 +55,115 @@ public sealed class StageFactory
 
         if (definition.Number == 3)
         {
-            Tile bossTile = world.GetTile(world.Columns - 6, Constants.MiddleLayer);
-            bossTile.Content = TileContent.Boss;
-            bossTile.Type = TileType.Hazard;
+            const int bossAreaColumns = 3;
+            int bossStartColumn = world.Columns - 6;
+            for (int column = bossStartColumn; column < bossStartColumn + bossAreaColumns; column++)
+            {
+                for (int row = 0; row < world.Rows; row++)
+                {
+                    Tile bossTile = world.GetTile(column, row);
+                    bossTile.Content = TileContent.Boss;
+                    bossTile.Type = TileType.Hazard;
+                }
+            }
         }
 
         return world;
+    }
+
+    // Biases later stages into changing rows more often so lane movement matters.
+    private static int ChooseContentRow(Random random, int rowCount, int stageNumber, int previousRow)
+    {
+        if (stageNumber <= 1 || random.NextDouble() > 0.68)
+        {
+            return random.Next(0, rowCount);
+        }
+
+        int rowOffset = random.Next(1, rowCount);
+        return (previousRow + rowOffset) % rowCount;
+    }
+
+    // Chooses pickups and hazards using stage-specific pressure curves.
+    private static TileContent RollStageContent(Random random, int stageNumber)
+    {
+        double roll = random.NextDouble();
+
+        return stageNumber switch
+        {
+            1 => roll switch
+            {
+                < 0.38 => TileContent.Coin,
+                < 0.46 => TileContent.StageItem,
+                < 0.51 => TileContent.OutOfStageItem,
+                < 0.59 => TileContent.RopeItem,
+                < 0.67 => TileContent.ScoreBooster,
+                < 0.75 => TileContent.LifeItem,
+                < 0.86 => TileContent.Obstacle,
+                _ => TileContent.Projectile
+            },
+            2 => roll switch
+            {
+                < 0.30 => TileContent.Coin,
+                < 0.37 => TileContent.StageItem,
+                < 0.42 => TileContent.OutOfStageItem,
+                < 0.49 => TileContent.RopeItem,
+                < 0.56 => TileContent.ScoreBooster,
+                < 0.61 => TileContent.LifeItem,
+                < 0.74 => TileContent.Obstacle,
+                < 0.93 => TileContent.Projectile,
+                _ => TileContent.HomingProjectile
+            },
+            _ => roll switch
+            {
+                < 0.26 => TileContent.Coin,
+                < 0.32 => TileContent.StageItem,
+                < 0.36 => TileContent.OutOfStageItem,
+                < 0.43 => TileContent.RopeItem,
+                < 0.50 => TileContent.ScoreBooster,
+                < 0.55 => TileContent.LifeItem,
+                < 0.76 => TileContent.Obstacle,
+                < 0.90 => TileContent.Projectile,
+                _ => TileContent.HomingProjectile
+            }
+        };
+    }
+
+    // Expands some obstacle rolls into two-row or full-column blocks.
+    private static void PlaceObstacleCluster(GridWorld world, Random random, int column, int anchorRow, int stageNumber)
+    {
+        double shapeRoll = random.NextDouble();
+        int rowCount = stageNumber switch
+        {
+            1 => shapeRoll < 0.28 ? 2 : 1,
+            2 => shapeRoll switch
+            {
+                < 0.10 => world.Rows,
+                < 0.55 => 2,
+                _ => 1
+            },
+            _ => shapeRoll switch
+            {
+                < 0.30 => world.Rows,
+                < 0.72 => 2,
+                _ => 1
+            }
+        };
+
+        int startRow = rowCount switch
+        {
+            1 => anchorRow,
+            2 when anchorRow == Constants.BackLayer => Constants.MiddleLayer,
+            2 when anchorRow == Constants.FrontLayer => Constants.FrontLayer,
+            2 => random.Next(Constants.FrontLayer, Constants.MiddleLayer + 1),
+            _ => Constants.FrontLayer
+        };
+
+        for (int row = startRow; row < startRow + rowCount && row < world.Rows; row++)
+        {
+            Tile obstacleTile = world.GetTile(column, row);
+            obstacleTile.Content = TileContent.Obstacle;
+            obstacleTile.Type = TileType.Hazard;
+        }
     }
 
     // Builds the route graph that powers branch choices during a run.

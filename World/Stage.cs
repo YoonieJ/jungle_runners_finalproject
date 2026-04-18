@@ -12,6 +12,7 @@ public sealed class Stage
     public bool HasBranchingRoutes => Graph.Nodes.Exists(node => node.Next.Count > 1);
 }
 
+// Describes a playable stage and its score thresholds.
 public sealed record StageDefinition(
     int Number,
     string Name,
@@ -20,6 +21,7 @@ public sealed record StageDefinition(
     int SilverScore,
     int GoldScore);
 
+// Describes one route segment in the stage graph.
 public sealed class MapSegment
 {
     public string Name { get; set; } = string.Empty;
