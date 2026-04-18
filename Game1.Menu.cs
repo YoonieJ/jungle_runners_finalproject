@@ -177,6 +177,7 @@ public partial class Game1
         if (IsNewKeyPress(keyboard, Keys.Escape))
         {
             _screen = GameScreen.MainMenu;
+            _audioManager.PlaySongForLevel(0);
         }
 
         if (IsNewKeyPress(keyboard, Keys.Right))
@@ -548,6 +549,12 @@ public partial class Game1
         _stageItemShieldCharges = 0;
         _ropeItemCharges = 0;
         _score = 0;
+        _runWon = false;
+        _collectedItemsThisRun.Clear();
+        _runRandom = new Random(_activeStage.Number);
+        _screen = GameScreen.Playing;
+        _audioManager.PlaySongForLevel(_selectedStage + 1);
+        _score = 0;
         _collectedItemsThisRun.Clear();
         ResetMapProjectiles();
         _runWon = false;
@@ -656,6 +663,7 @@ public partial class Game1
         _currentUser = user;
         _saveFile.LastUserId = _currentUser.UserId;
         _soundEnabled = _currentUser.Settings.SoundEnabled;
+        _audioManager.SetMute(!_soundEnabled);
         _selectedDifficulty = _currentUser.Settings.Difficulty;
         _viewMode = ViewMode.Front;
         _menuFocus = MenuFocus.Options;
@@ -741,6 +749,7 @@ public partial class Game1
     private void ToggleSound()
     {
         _soundEnabled = !_soundEnabled;
+        _audioManager.ToggleMute();
         if (_currentUser is not null)
         {
             _currentUser.Settings.SoundEnabled = _soundEnabled;

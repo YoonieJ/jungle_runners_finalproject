@@ -13,18 +13,6 @@
 
 #---------------------------------- Content ---------------------------------#
 
-#begin jungle_runners_main.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
-/processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:jungle_runners_main.png;jungle_runners_main.png
-
 #begin boss_arrow.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -142,6 +130,12 @@
 /processorParam:TextureFormat=Color
 /build:jungle_runners_stage3.png
 
+#begin os_music-jungle-percussion-beat-royalty-free-music-482338.mp3
+/importer:Mp3Importer
+/processor:SongProcessor
+/processorParam:Quality=Best
+/build:os_music-jungle-percussion-beat-royalty-free-music-482338.mp3
+
 #begin player_1.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -165,6 +159,18 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:player_2.png
+
+#begin redproductions-african-rhythm-africa-groovy-sport-stomping-music-20622.mp3
+/importer:Mp3Importer
+/processor:SongProcessor
+/processorParam:Quality=Best
+/build:redproductions-african-rhythm-africa-groovy-sport-stomping-music-20622.mp3
+
+#begin sonican-lo-fi-music-loop-sentimental-jazzy-love-473154.mp3
+/importer:Mp3Importer
+/processor:SongProcessor
+/processorParam:Quality=Best
+/build:sonican-lo-fi-music-loop-sentimental-jazzy-love-473154.mp3
 
 #begin stage_arrow.png
 /importer:TextureImporter
@@ -249,4 +255,10 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:Untitled_Artwork.png
+
+#begin williamhector-cinematic-action-jungle-drums-loop-125bpm-345139.mp3
+/importer:Mp3Importer
+/processor:SongProcessor
+/processorParam:Quality=Best
+/build:williamhector-cinematic-action-jungle-drums-loop-125bpm-345139.mp3
 

@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Microsoft.Xna.Framework.Media;
 
 namespace jungle_runners_finalproject;
 
@@ -105,6 +106,8 @@ public partial class Game1 : Game
     private Random _runRandom = new(1);
     private readonly HashSet<string> _collectedItemsThisRun = [];
 
+    private AudioManager _audioManager;
+
     // Configures the game window, content root, and base MonoGame settings.
     public Game1()
     {
@@ -121,6 +124,7 @@ public partial class Game1 : Game
     protected override void Initialize()
     {
         LoadSaveFile();
+        _audioManager = new AudioManager();
         base.Initialize();
     }
 
@@ -156,6 +160,9 @@ public partial class Game1 : Game
             Content.Load<Texture2D>("player_2")
         ];
         _minecraftFont = Content.Load<SpriteFont>("Fonts/Minecraft");
+
+        _audioManager.LoadContent(Content);
+        _audioManager.PlaySongForLevel(0);
     }
 
     // Routes per-frame input and simulation work to the active prototype screen.
