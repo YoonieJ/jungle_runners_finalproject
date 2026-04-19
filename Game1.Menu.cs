@@ -466,6 +466,7 @@ public partial class Game1
             StageNode route = _activeStageData.CurrentNode.Next[_routeChoiceIndex];
             PixelFont.Draw(_spriteBatch, _pixel, "ROUTE CHOICE", 420, 330, 5, Color.Gold);
             PixelFont.Draw(_spriteBatch, _pixel, $"LEFT/RIGHT PICK  ENTER {route.Label}", 270, 405, 3, Color.White);
+            DrawRouteChoiceLabels(270, 455, 3);
         }
     }
 
@@ -543,7 +544,7 @@ public partial class Game1
     {
         EnsureCurrentUser();
 
-        // Apply selected difficulty to stage generation, lives, scoring targets, and hazard speed.
+        // Apply selected difficulty to stage generation, starting lives, scoring targets, and hazard speed.
         _activeStage = _stages[_selectedStage];
         _activeStageData = _stageFactory.Create(_activeStage, _selectedDifficulty);
         _segments = _activeStageData.Segments;
@@ -564,7 +565,7 @@ public partial class Game1
         _damageFlashTimer = 0f;
         _screenShakeTimer = 0f;
         _runAnimationTimer = 0f;
-        _lives = 4 - (_selectedStage + 1);
+        _lives = GetStartingLivesForDifficulty(_selectedDifficulty);
         _coins = 0;
         _boosters = 0;
         _coinScore = 0;
@@ -805,6 +806,17 @@ public partial class Game1
             _currentUser.Settings.Difficulty = _selectedDifficulty;
             SaveSaveFile();
         }
+    }
+
+    // Starting lives depend only on difficulty, not on the selected stage.
+    private static int GetStartingLivesForDifficulty(Difficulty difficulty)
+    {
+        return difficulty switch
+        {
+            Difficulty.Easy => 3,
+            Difficulty.Hard => 1,
+            _ => 2
+        };
     }
 
     // Updates short-lived jump, slide, rope, score boost, and invulnerability timers.
@@ -1383,6 +1395,8 @@ public partial class Game1
             }
         }
 
+        DrawRoutePreviewsTop(originX, originY, cell, tileSize, scroll);
+
         int playerX = (int)(originX + RunnerX * (cell / GameplayTileSpacing));
         int playerDisplayRow = _activeStageData.World.Rows - 1 - _playerRow;
         int playerY = originY + playerDisplayRow * (cell + 18);
@@ -1390,6 +1404,141 @@ public partial class Game1
         PixelFont.Draw(_spriteBatch, _pixel, "ROW 3", 28, originY + 8, 2, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, "ROW 2", 28, originY + cell + 26, 2, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, "ROW 1", 28, originY + (cell + 18) * 2 + 8, 2, Color.White);
+    }
+
+    // Highlights graph route choices in top view so each branch's lane and merge point are visible.
+    private void DrawRoutePreviewsTop(int originX, int originY, int cell, int tileSize, float scroll)
+    {
+        if (!_awaitingRouteChoice || _activeStageData.CurrentNode is null || _activeStageData.CurrentNode.Next.Count <= 1)
+        {
+            return;
+        }
+
+        IReadOnlyList<StageNode> candidates = _activeStageData.CurrentNode.Next;
+        for (int index = 0; index < candidates.Count; index++)
+        {
+            StageNode candidate = candidates[index];
+            bool isSelected = index == _routeChoiceIndex;
+            Color color = index == 0 ? Color.Gold : Color.Cyan;
+            bool dashed = index % 2 == 1;
+
+            DrawRouteSegmentTop(candidate.Segment, originX, originY, cell, tileSize, scroll, color, dashed, isSelected);
+
+            if (candidate.Next.Count > 0)
+            {
+                StageNode mergeNode = candidate.Next[0];
+                DrawRouteSegmentTop(mergeNode.Segment, originX, originY, cell, tileSize, scroll, color * 0.55f, dashed, false);
+                DrawRouteTransitionTop(candidate.Segment, mergeNode.Segment, originX, originY, cell, tileSize, scroll, color, dashed);
+            }
+        }
+
+        PixelFont.Draw(_spriteBatch, _pixel, "ROUTE PREVIEW", 430, 612, 3, Color.Gold);
+        DrawRouteChoiceLabels(430, 646, 2);
+    }
+
+    // Lists route names beside their preview styles so the branch colors are meaningful.
+    private void DrawRouteChoiceLabels(int x, int y, int scale)
+    {
+        if (_activeStageData.CurrentNode is null || _activeStageData.CurrentNode.Next.Count == 0)
+        {
+            return;
+        }
+
+        IReadOnlyList<StageNode> candidates = _activeStageData.CurrentNode.Next;
+        for (int index = 0; index < candidates.Count; index++)
+        {
+            StageNode candidate = candidates[index];
+            string inputLabel = index == 0 ? "LEFT" : index == 1 ? "RIGHT" : $"ROUTE {index + 1}";
+            string styleLabel = index == 0 ? "GOLD GLOW" : "CYAN DASH";
+            Color color = index == _routeChoiceIndex ? Color.White : index == 0 ? Color.Gold : Color.Cyan;
+            PixelFont.Draw(_spriteBatch, _pixel, $"{inputLabel} {styleLabel}: {candidate.Label}", x, y + index * 28, scale, color);
+        }
+    }
+
+    // Draws one graph segment as repeated top-view tile outlines.
+    private void DrawRouteSegmentTop(MapSegment segment, int originX, int originY, int cell, int tileSize, float scroll, Color color, bool dashed, bool isSelected)
+    {
+        int startColumn = Math.Min(segment.PreviewStartColumn, segment.PreviewEndColumn);
+        int endColumn = Math.Max(segment.PreviewStartColumn, segment.PreviewEndColumn);
+
+        for (int column = startColumn; column <= endColumn; column++)
+        {
+            Rectangle bounds = GetTopGridCellBounds(column, segment.PreferredRow, originX, originY, cell, tileSize, scroll);
+            if (bounds.Right < -cell || bounds.X > WindowWidth + cell)
+            {
+                continue;
+            }
+
+            if (dashed && column % 2 != 0)
+            {
+                DrawRouteDash(bounds, color);
+            }
+            else
+            {
+                if (!dashed)
+                {
+                    DrawRectangleOutline(bounds.InflateBy(10), 2, color * 0.28f);
+                    DrawRectangleOutline(bounds.InflateBy(5), 2, color * 0.45f);
+                }
+
+                DrawRectangleOutline(bounds.InflateBy(2), isSelected ? 5 : 3, color);
+            }
+
+            if (isSelected)
+            {
+                DrawRectangleOutline(bounds.InflateBy(8), 2, Color.White * 0.72f);
+            }
+        }
+    }
+
+    // Draws a vertical hint where a branch returns to the merge route.
+    private void DrawRouteTransitionTop(MapSegment from, MapSegment to, int originX, int originY, int cell, int tileSize, float scroll, Color color, bool dashed)
+    {
+        int column = from.PreviewEndColumn;
+        int minRow = Math.Min(from.PreferredRow, to.PreferredRow);
+        int maxRow = Math.Max(from.PreferredRow, to.PreferredRow);
+
+        for (int row = minRow; row <= maxRow; row++)
+        {
+            Rectangle bounds = GetTopGridCellBounds(column, row, originX, originY, cell, tileSize, scroll);
+            if (bounds.Right < -cell || bounds.X > WindowWidth + cell)
+            {
+                continue;
+            }
+
+            if (dashed && row % 2 == 0)
+            {
+                DrawRouteDash(bounds, color * 0.7f);
+            }
+            else
+            {
+                DrawRectangleOutline(bounds.InflateBy(2), 3, color * 0.7f);
+            }
+        }
+    }
+
+    // Converts one world tile coordinate into its top-view screen rectangle.
+    private Rectangle GetTopGridCellBounds(int column, int row, int originX, int originY, int cell, int tileSize, float scroll)
+    {
+        int x = (int)(originX + column * cell - scroll);
+        int displayRow = _activeStageData.World.Rows - 1 - row;
+        int y = originY + displayRow * (cell + 18);
+        return new Rectangle(x, y, tileSize, tileSize);
+    }
+
+    // Draws four short corner marks to make a route outline read as dashed.
+    private void DrawRouteDash(Rectangle bounds, Color color)
+    {
+        int length = Math.Max(14, bounds.Width / 3);
+        int thickness = 4;
+        _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Y, length, thickness), color);
+        _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Y, thickness, length), color);
+        _spriteBatch.Draw(_pixel, new Rectangle(bounds.Right - length, bounds.Y, length, thickness), color);
+        _spriteBatch.Draw(_pixel, new Rectangle(bounds.Right - thickness, bounds.Y, thickness, length), color);
+        _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Bottom - thickness, length, thickness), color);
+        _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Bottom - length, thickness, length), color);
+        _spriteBatch.Draw(_pixel, new Rectangle(bounds.Right - length, bounds.Bottom - thickness, length, thickness), color);
+        _spriteBatch.Draw(_pixel, new Rectangle(bounds.Right - thickness, bounds.Bottom - length, thickness, length), color);
     }
 
     // Converts a stage grid column into the current screen-space x position.

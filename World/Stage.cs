@@ -29,4 +29,6 @@ public sealed class MapSegment
     public bool HasBoss { get; set; }
     public GridWorld Grid { get; set; } = new(Constants.GameplayRows, 12);
     public int PreferredRow { get; set; } = Constants.MiddleLayer;
+    public int PreviewStartColumn { get; set; }
+    public int PreviewEndColumn { get; set; }
 }

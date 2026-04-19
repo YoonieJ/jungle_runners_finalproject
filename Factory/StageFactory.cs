@@ -4,6 +4,8 @@ namespace jungle_runners_finalproject;
 
 public sealed class StageFactory
 {
+    private const float RouteColumnSpacing = 150f;
+
     // Builds a full stage from its definition, including world tiles and route graph.
     public Stage Create(StageDefinition definition, Difficulty difficulty)
     {
@@ -47,7 +49,7 @@ public sealed class StageFactory
             }
         }
 
-        int branchColumn = Math.Min(world.Columns - 8, 14 + definition.Number * 4);
+        int branchColumn = GetBranchColumn(world, definition.Number);
         for (int row = 0; row < world.Rows; row++)
         {
             world.GetTile(branchColumn, row).Type = TileType.Branch;
@@ -282,14 +284,52 @@ public sealed class StageFactory
             && tile.Content == TileContent.Empty;
     }
 
+    private static int GetBranchColumn(GridWorld world, int stageNumber)
+    {
+        return Math.Min(world.Columns - 8, 14 + stageNumber * 4);
+    }
+
     // Builds the prototype route graph that powers branch choices during a run.
     private static void BuildGraph(Stage stage)
     {
         // TODO: Replace this hardcoded graph with full graph/route selection data per stage.
-        MapSegment start = new() { Name = "Approach", Length = 1200f, PreferredRow = Constants.MiddleLayer };
-        MapSegment highRoute = new() { Name = "Canopy Route", Length = 900f, PreferredRow = Constants.BackLayer };
-        MapSegment lowRoute = new() { Name = "Ruins Route", Length = 900f, PreferredRow = Constants.FrontLayer };
-        MapSegment merge = new() { Name = "Temple Gate", Length = 1200f, PreferredRow = Constants.MiddleLayer, HasBoss = stage.Definition.Number == 3 };
+        int branchColumn = GetBranchColumn(stage.World, stage.Definition.Number);
+        int mergeColumn = branchColumn + 8;
+        int routeEndColumn = stage.Definition.Number == 3 ? stage.World.Columns - 8 : stage.World.Columns - 2;
+
+        MapSegment start = new()
+        {
+            Name = "Approach",
+            Length = branchColumn * RouteColumnSpacing,
+            PreferredRow = Constants.MiddleLayer,
+            PreviewStartColumn = 0,
+            PreviewEndColumn = branchColumn
+        };
+        MapSegment highRoute = new()
+        {
+            Name = "Canopy Route",
+            Length = (mergeColumn - branchColumn) * RouteColumnSpacing,
+            PreferredRow = Constants.BackLayer,
+            PreviewStartColumn = branchColumn,
+            PreviewEndColumn = mergeColumn
+        };
+        MapSegment lowRoute = new()
+        {
+            Name = "Ruins Route",
+            Length = (mergeColumn - branchColumn) * RouteColumnSpacing,
+            PreferredRow = Constants.FrontLayer,
+            PreviewStartColumn = branchColumn,
+            PreviewEndColumn = mergeColumn
+        };
+        MapSegment merge = new()
+        {
+            Name = "Temple Gate",
+            Length = (routeEndColumn - mergeColumn) * RouteColumnSpacing,
+            PreferredRow = Constants.MiddleLayer,
+            HasBoss = stage.Definition.Number == 3,
+            PreviewStartColumn = mergeColumn,
+            PreviewEndColumn = routeEndColumn
+        };
 
         stage.Segments.Add(start);
         stage.Segments.Add(highRoute);

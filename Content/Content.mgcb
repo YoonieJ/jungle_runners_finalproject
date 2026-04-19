@@ -82,6 +82,18 @@
 /processorParam:TextureFormat=Color
 /build:jungle_runners_main_stage1.png
 
+#begin jungle_runners_main_stage1.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:jungle_runners_main_stage1.png
+
 #begin jungle_runners_main_stage2.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -93,6 +105,30 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:jungle_runners_main_stage2.png
+
+#begin jungle_runners_main_stage2.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:jungle_runners_main_stage2.png
+
+#begin jungle_runners_main_stage3.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:jungle_runners_main_stage3.png
 
 #begin jungle_runners_main_stage3.png
 /importer:TextureImporter
@@ -118,7 +154,7 @@
 /processorParam:TextureFormat=Color
 /build:jungle_runners_main.png
 
-#begin jungle_runners_stage1.png
+#begin jungle_runners_main.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -128,31 +164,7 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:jungle_runners_stage1.png
-
-#begin jungle_runners_stage2.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
-/processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:jungle_runners_stage2.png
-
-#begin jungle_runners_stage3.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
-/processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:jungle_runners_stage3.png
+/build:jungle_runners_main.png
 
 #begin os_music-jungle-percussion-beat-royalty-free-music-482338.mp3
 /importer:Mp3Importer
