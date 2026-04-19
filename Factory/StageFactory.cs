@@ -17,11 +17,12 @@ public sealed class StageFactory
         return stage;
     }
 
-    // Generates the prototype stage grid with deterministic pickups, hazards, and branch markers.
+    // Generates the prototype stage grid with deterministic pickups, hazards, branch markers, and coin guides.
     private static GridWorld GenerateWorld(StageDefinition definition, Difficulty difficulty)
     {
-        // TODO: Replace the simple deterministic scatter with authored/data-driven layouts,
-        // then tune hazard/reward density by Difficulty.
+        // TODO: Replace deterministic scatter with authored/data-driven layouts for more stages.
+        // TODO: Add stage dialogue triggers and richer route metadata for RPG-style progression.
+        // TODO: Tune hazard/reward density by Difficulty after authored layouts are in place.
         int columns = Constants.DefaultStageColumns + definition.Number * 8;
         GridWorld world = new(Constants.GameplayRows, columns);
         Random random = new(definition.Number * 997);
@@ -68,6 +69,7 @@ public sealed class StageFactory
             }
         }
 
+        PlaceRecommendedCoinPath(world, definition.Number, branchColumn);
         return world;
     }
 
@@ -183,9 +185,107 @@ public sealed class StageFactory
         }
     }
 
-    // Builds the route graph that powers branch choices during a run.
+    // Adds breadcrumb coins along the safest-looking route so the lane choice is readable in motion.
+    private static void PlaceRecommendedCoinPath(GridWorld world, int stageNumber, int branchColumn)
+    {
+        int routeRow = stageNumber switch
+        {
+            2 => Constants.FrontLayer,
+            _ => Constants.BackLayer
+        };
+        int mergeColumn = branchColumn + 8;
+        int bossBufferStart = stageNumber == 3 ? world.Columns - 8 : world.Columns;
+        int lastPathColumn = Math.Min(world.Columns - 3, bossBufferStart - 1);
+
+        for (int column = 2; column <= lastPathColumn; column += 2)
+        {
+            int row = GetRecommendedPathRow(column, branchColumn, mergeColumn, routeRow);
+            PlaceCoinNearPath(world, column, row);
+        }
+
+        AddTransitionCoins(world, branchColumn, Constants.MiddleLayer, routeRow);
+        AddTransitionCoins(world, mergeColumn, routeRow, Constants.MiddleLayer);
+    }
+
+    // Smooths row changes with denser coins around branch and merge columns.
+    private static void AddTransitionCoins(GridWorld world, int centerColumn, int startRow, int destinationRow)
+    {
+        for (int offset = -2; offset <= 2; offset++)
+        {
+            int column = centerColumn + offset;
+            int row = InterpolateRow(startRow, destinationRow, offset + 2, 4);
+            PlaceCoinNearPath(world, column, row);
+        }
+    }
+
+    // Picks the guide lane: middle approach, chosen branch route, then middle again after the merge.
+    private static int GetRecommendedPathRow(int column, int branchColumn, int mergeColumn, int routeRow)
+    {
+        if (column < branchColumn - 2)
+        {
+            return Constants.MiddleLayer;
+        }
+
+        if (column <= branchColumn + 2)
+        {
+            return InterpolateRow(Constants.MiddleLayer, routeRow, column - (branchColumn - 2), 4);
+        }
+
+        if (column < mergeColumn - 2)
+        {
+            return routeRow;
+        }
+
+        if (column <= mergeColumn + 2)
+        {
+            return InterpolateRow(routeRow, Constants.MiddleLayer, column - (mergeColumn - 2), 4);
+        }
+
+        return Constants.MiddleLayer;
+    }
+
+    private static int InterpolateRow(int startRow, int endRow, int step, int stepCount)
+    {
+        float progress = stepCount == 0 ? 1f : Math.Clamp(step / (float)stepCount, 0f, 1f);
+        return (int)Math.Round(startRow + (endRow - startRow) * progress);
+    }
+
+    // Places a guide coin without overwriting hazards, boss tiles, or existing pickups.
+    private static void PlaceCoinNearPath(GridWorld world, int column, int preferredRow)
+    {
+        if (column < 0 || column >= world.Columns)
+        {
+            return;
+        }
+
+        int[] candidateRows = preferredRow switch
+        {
+            Constants.FrontLayer => [Constants.FrontLayer, Constants.MiddleLayer, Constants.BackLayer],
+            Constants.BackLayer => [Constants.BackLayer, Constants.MiddleLayer, Constants.FrontLayer],
+            _ => [Constants.MiddleLayer, Constants.BackLayer, Constants.FrontLayer]
+        };
+
+        foreach (int row in candidateRows)
+        {
+            Tile tile = world.GetTile(column, row);
+            if (CanPlaceRecommendedCoin(tile))
+            {
+                tile.Content = TileContent.Coin;
+                return;
+            }
+        }
+    }
+
+    private static bool CanPlaceRecommendedCoin(Tile tile)
+    {
+        return tile.Type is TileType.Ground or TileType.Branch or TileType.Merge
+            && tile.Content == TileContent.Empty;
+    }
+
+    // Builds the prototype route graph that powers branch choices during a run.
     private static void BuildGraph(Stage stage)
     {
+        // TODO: Replace this hardcoded graph with full graph/route selection data per stage.
         MapSegment start = new() { Name = "Approach", Length = 1200f, PreferredRow = Constants.MiddleLayer };
         MapSegment highRoute = new() { Name = "Canopy Route", Length = 900f, PreferredRow = Constants.BackLayer };
         MapSegment lowRoute = new() { Name = "Ruins Route", Length = 900f, PreferredRow = Constants.FrontLayer };

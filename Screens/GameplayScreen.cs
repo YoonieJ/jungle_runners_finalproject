@@ -15,6 +15,7 @@ public sealed class GameplayScreen : IScreen
     private const float SlideDuration = 0.55f;
     private const float RopeDuration = 1.8f;
     private const float ScoreBoostDuration = 5f;
+    private const float ScoreBoostMultiplier = 10f;
     private const float InvulnerableDuration = 1.2f;
 
     private Stage? _stage;
@@ -24,8 +25,10 @@ public sealed class GameplayScreen : IScreen
     private float _slideTimer;
     private float _ropeTimer;
     private float _scoreBoostTimer;
+    private float _distanceScore;
     private float _invulnerableTimer;
     private int _boosters;
+    private int _coinScore;
     private int _ropeItemCharges;
     private int _routeChoiceIndex;
     private bool _hasStarted;
@@ -65,8 +68,10 @@ public sealed class GameplayScreen : IScreen
         _slideTimer = 0f;
         _ropeTimer = 0f;
         _scoreBoostTimer = 0f;
+        _distanceScore = 0f;
         _invulnerableTimer = 0f;
         _boosters = 0;
+        _coinScore = 0;
         _ropeItemCharges = 0;
         _routeChoiceIndex = 0;
         PlayerRow = _activeSegment?.PreferredRow ?? Constants.MiddleLayer;
@@ -173,19 +178,20 @@ public sealed class GameplayScreen : IScreen
         {
             _ropeItemCharges--;
             _ropeTimer = RopeDuration;
-            _scoreBoostTimer = RopeDuration;
         }
 
         UpdatePlayerActionTimers(deltaSeconds);
 
         WorldScroller.Speed = Constants.ScrollSpeed * (_ropeTimer > 0f ? 1.6f : 1f);
+        float previousDistance = Distance;
         WorldScroller.Update(deltaSeconds);
+        _distanceScore += Math.Max(0f, Distance - previousDistance) * GetScoreMultiplier();
         _segmentProgress += WorldScroller.Speed * deltaSeconds;
 
         ResolveGridInteractions();
         UpdateRouteProgress();
 
-        Player.Score = (int)Distance + Player.Coins * Constants.CoinScoreValue + _boosters * Constants.BoosterScoreValue;
+        Player.Score = CalculateRunScore();
 
         float stageEnd = SpawnScreenOffset + Stage.World.Columns * GameplayTileSpacing - Constants.DefaultRunnerX;
         if (WorldScroller.OffsetX >= stageEnd)
@@ -286,6 +292,24 @@ public sealed class GameplayScreen : IScreen
         }
     }
 
+    // Returns the current run score with boost multipliers applied only to points earned while active.
+    private int CalculateRunScore()
+    {
+        return (int)_distanceScore + _coinScore;
+    }
+
+    // Returns the score multiplier for points earned during an active score boost.
+    private float GetScoreMultiplier()
+    {
+        return _scoreBoostTimer > 0f ? ScoreBoostMultiplier : 1f;
+    }
+
+    // Applies the active score multiplier to one-time score awards like coins.
+    private int GetBoostedScoreValue(int baseValue)
+    {
+        return (int)MathF.Round(baseValue * GetScoreMultiplier());
+    }
+
     // Checks the runner against nearby tile content and applies pickups or damage.
     private void ResolveGridInteractions()
     {
@@ -312,6 +336,7 @@ public sealed class GameplayScreen : IScreen
             {
                 case TileContent.Coin:
                     Player.Coins++;
+                    _coinScore += GetBoostedScoreValue(Constants.CoinScoreValue);
                     tile.Content = TileContent.Empty;
                     break;
                 case TileContent.LifeItem:

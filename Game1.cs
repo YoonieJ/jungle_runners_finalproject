@@ -18,7 +18,8 @@ public partial class Game1 : Game
     private const float JumpVelocity = -760f;
     private const float DoubleJumpVelocity = -650f;
     private const int CoinsScoreWeight = 45;
-    private const int BoostScoreWeight = 180;
+    private const float ScoreBoostDuration = 5f;
+    private const float ScoreBoostMultiplier = 10f;
     private const float MenuKeyRepeatInitialDelay = 0.28f;
     private const float MenuKeyRepeatInterval = 0.09f;
     private const float RunnerFrameTime = 0.14f;
@@ -52,8 +53,8 @@ public partial class Game1 : Game
 
     private SaveFile _saveFile = new();
     private UserProfile? _currentUser;
-    // TODO: Move screen ownership into ScreenManager once LoginScreen, MainMenuScreen,
-    // StageSelectScreen, GameplayScreen, and GameOverScreen contain the current prototype behavior.
+    // TODO: Move this prototype screen enum into ScreenManager after the standalone screen classes
+    // contain login, menus, stage selection, gameplay, game-over, and scoreboard behavior.
     private GameScreen _screen = GameScreen.MainMenu;
     private MenuFocus _menuFocus = MenuFocus.UserId;
     private int _mainMenuSelection;
@@ -67,6 +68,7 @@ public partial class Game1 : Game
     private float _menuDownRepeatTimer;
 
     private readonly string[] _mainMenuOptions = ["Start Game", "How to Play", "Sound", "Logout"];
+    // TODO: Add more stages here, then pair each stage with RPG-style dialogue and route metadata.
     private readonly StageDefinition[] _stages =
     [
         new(1, "Overgrown Gate", "Broken stone, low traps, safer routes.", 1650, 2500, 3350),
@@ -83,10 +85,12 @@ public partial class Game1 : Game
     private StageDefinition _activeStage = null!;
     private Stage _activeStageData = new();
     // TODO: Move run state into GameplayScreen/Player/Stage so Game1 only routes update/draw calls.
+    // Keep animation state, hitboxes, route choice state, boss state, and item effects with their owners.
     private List<MapSegment> _segments = [];
     private MapSegment _activeSegment = null!;
     private float _segmentProgress;
     private float _distance;
+    private float _distanceScore;
     private float _playerJumpOffset;
     private float _playerVelocityY;
     private bool _canDoubleJump;
@@ -100,6 +104,7 @@ public partial class Game1 : Game
     private int _lives;
     private int _coins;
     private int _boosters;
+    private int _coinScore;
     private int _stageItemShieldCharges;
     private int _ropeItemCharges;
     private int _score;

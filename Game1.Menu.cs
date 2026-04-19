@@ -95,7 +95,7 @@ public partial class Game1
             return;
         }
 
-        // TODO: Add a full settings menu with difficulty, view mode, and other options.
+        // TODO: Add a full settings menu for difficulty, view mode, sound, controls, and display options.
         if (IsRepeatingKeyPress(keyboard, Keys.Down, ref _menuDownRepeatTimer, deltaSeconds))
         {
             _mainMenuSelection = (_mainMenuSelection + 1) % _mainMenuOptions.Length;
@@ -263,15 +263,16 @@ public partial class Game1
         {
             _ropeItemCharges--;
             _ropeTimer = 1.8f;
-            _scoreBoostTimer = 1.8f;
         }
 
         UpdatePlayerActionTimers(deltaSeconds);
 
         _worldScroller.Speed = IsBossEncounterActive() ? 0f : Constants.ScrollSpeed * (_ropeTimer > 0f ? 1.6f : 1f);
         _runAnimationTimer += deltaSeconds * (_worldScroller.Speed / Constants.ScrollSpeed);
+        float previousDistance = _distance;
         _worldScroller.Update(deltaSeconds);
         _distance = _worldScroller.OffsetX;
+        _distanceScore += System.Math.Max(0f, _distance - previousDistance) * GetScoreMultiplier();
         _segmentProgress += _worldScroller.Speed * deltaSeconds;
         UpdateBossEncounter(deltaSeconds);
         if (_screen != GameScreen.Playing)
@@ -400,11 +401,12 @@ public partial class Game1
         PixelFont.Draw(_spriteBatch, _pixel, "ENTER OR ESC BACK", 100, 630, 3, Color.Gold);
     }
 
-    // Draws the side-view prototype using colored rectangles for lanes, contents, and the player.
+    // Draws the side-view prototype using lane bands, sprites, active hazards, and the runner.
     private void DrawFrontView()
     {
-        // TODO: Move this placeholder rectangle rendering into FrontViewRenderer and
-        // draw real sprites/content assets through AssetManager.
+        // TODO: Move this rendering into FrontViewRenderer and pass assets through AssetManager.
+        // TODO: Add barricade sprites, rope feedback, jump/slide sprites, and more run frames.
+        // TODO: Tune lane grounding so player, obstacles, and projectiles sit on the lane surface.
         DrawGameplayBackground();
         DrawFrontLanes();
 
@@ -451,6 +453,11 @@ public partial class Game1
         PixelFont.Draw(_spriteBatch, _pixel, $"ROPES {_ropeItemCharges}", 970, 144, 3, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, $"SHIELDS {_stageItemShieldCharges}", 970, 178, 3, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, !_audioManager.IsMuted ? "SOUND ON" : "SOUND OFF", 970, 212, 3, Color.White);
+        if (_scoreBoostTimer > 0f)
+        {
+            PixelFont.Draw(_spriteBatch, _pixel, $"BOOST X10 {MathF.Ceiling(_scoreBoostTimer)}", 970, 246, 3, Color.Gold);
+        }
+
         PixelFont.Draw(_spriteBatch, _pixel, "SPACE JUMP  DOWN SLIDE  R ROPE", 36, 28, 3, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, "HOLD V TOP VIEW  M SOUND  LEFT/RIGHT ROW", 36, 62, 3, Color.White);
 
@@ -472,7 +479,7 @@ public partial class Game1
 
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, WindowWidth, WindowHeight), Color.Black * 0.45f);
 
-        Rectangle bossImage = new(WindowWidth - 380, 120, 250, 270);
+        Rectangle bossImage = new(WindowWidth - 450, 220, 360, 390);
         DrawTextureInBounds(_bossBodyTexture, bossImage, Color.White);
 
         if (_bossIntroActive)
@@ -545,6 +552,7 @@ public partial class Game1
         _worldScroller.Reset();
         _segmentProgress = 0f;
         _distance = 0f;
+        _distanceScore = 0f;
         _playerJumpOffset = 0f;
         _playerVelocityY = 0f;
         _canDoubleJump = true;
@@ -559,6 +567,7 @@ public partial class Game1
         _lives = 4 - (_selectedStage + 1);
         _coins = 0;
         _boosters = 0;
+        _coinScore = 0;
         _stageItemShieldCharges = 0;
         _ropeItemCharges = 0;
         _score = 0;
@@ -728,7 +737,8 @@ public partial class Game1
     // Persists score, stars, lives, and completion data for the current local user.
     private void SaveStageProgress()
     {
-        // TODO: Unlock the next stage on clear and cap or summarize score history so saves do not grow forever.
+        // TODO: Unlock the next stage on clear, then show a per-user scoreboard at round end.
+        // TODO: Cap or summarize score history so saves do not grow forever.
         EnsureCurrentUser();
 
         if (!_currentUser!.StageProgress.TryGetValue(_activeStage.Number, out StageProgress? progress))
@@ -824,7 +834,19 @@ public partial class Game1
     // Returns the current score including the stage 3 boss survival bonus when earned.
     private int CalculateRunScore()
     {
-        return (int)_distance + _coins * CoinsScoreWeight + _boosters * BoostScoreWeight + _bossSurvivalBonus;
+        return (int)_distanceScore + _coinScore + _bossSurvivalBonus;
+    }
+
+    // Returns the score multiplier for points earned during an active score boost.
+    private float GetScoreMultiplier()
+    {
+        return _scoreBoostTimer > 0f ? ScoreBoostMultiplier : 1f;
+    }
+
+    // Applies the active score multiplier to one-time score awards like coins.
+    private int GetBoostedScoreValue(int baseValue)
+    {
+        return (int)MathF.Round(baseValue * GetScoreMultiplier());
     }
 
     // True while the stage 3 boss has control of the run.
@@ -850,6 +872,7 @@ public partial class Game1
     // Starts the stage 3 boss arrival screen when the runner enters the boss tile area.
     private void StartBossEncounter()
     {
+        // TODO: Add pre-boss RPG dialogue before freezing the runner and starting the fight.
         if (_bossEncounterStarted)
         {
             return;
@@ -871,6 +894,7 @@ public partial class Game1
     // Advances the boss intro, timed fight, and projectile/object attacks.
     private void UpdateBossEncounter(float deltaSeconds)
     {
+        // TODO: Add boss movement patterns instead of keeping the boss sprite fixed on screen.
         if (_bossIntroActive)
         {
             _bossIntroTimer -= deltaSeconds;
@@ -1144,7 +1168,7 @@ public partial class Game1
     private void ResolveGridInteractions()
     {
         // TODO: Replace screen-x proximity checks with ColliderComponent/CollisionHelper so player,
-        // item, projectile, obstacle, and boss behavior all use the same collision path.
+        // items, projectiles, obstacles, boss attacks, jump arcs, and slide bounds share precise hitboxes.
         foreach (Tile tile in _activeStageData.World.AllTiles)
         {
             if (!tile.HasContent || tile.Row != _playerRow)
@@ -1163,6 +1187,7 @@ public partial class Game1
             {
                 case TileContent.Coin:
                     _coins++;
+                    _coinScore += GetBoostedScoreValue(CoinsScoreWeight);
                     tile.Content = TileContent.Empty;
                     break;
                 case TileContent.LifeItem:
@@ -1171,7 +1196,7 @@ public partial class Game1
                     break;
                 case TileContent.ScoreBooster:
                     _boosters++;
-                    _scoreBoostTimer = 5f;
+                    _scoreBoostTimer = ScoreBoostDuration;
                     tile.Content = TileContent.Empty;
                     break;
                 case TileContent.StageItem:
@@ -1221,6 +1246,7 @@ public partial class Game1
     // Records only non-consumable, out-of-stage placeholder items for the user JSON inventory.
     private void TrackCollectedItem(Tile tile)
     {
+        // TODO: Let users equip out-of-stage items and use them for character customization or run bonuses.
         string itemId = $"{tile.Content}-S{_activeStage.Number}-C{tile.Column}-R{tile.Row}";
         _collectedItemsThisRun.Add(itemId);
     }
@@ -1375,6 +1401,7 @@ public partial class Game1
     // Returns the current runner frame from the two loaded player poses.
     private Texture2D GetPlayerRunFrame()
     {
+        // TODO: Add more run frames and choose separate jump, slide, and rope sprites by player state.
         int frameIndex = (int)(_runAnimationTimer / RunnerFrameTime) % _playerRunFrames.Length;
         return _playerRunFrames[frameIndex];
     }
@@ -1419,9 +1446,10 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, WindowWidth, WindowHeight), Color.Red * alpha);
     }
 
-    // Looks up real sprite art for tile content that has an added asset.
+    // Looks up sprite art for tile content that has an added asset.
     private Texture2D? GetTileContentTexture(TileContent content)
     {
+        // TODO: Add a barricade-specific sprite for obstacle tiles.
         return content switch
         {
             TileContent.Coin => _coinTexture,

@@ -1,27 +1,31 @@
 # Jungle Runners
 
-Jungle Runners is a MonoGame DesktopGL endless-runner style course game built for the CS324E final project. The player logs in with a local user id, chooses one of three jungle stages, and runs through scrolling lanes filled with coins, shields, ropes, hazards, projectiles, branching routes, and a final boss encounter.
+Jungle Runners is a MonoGame DesktopGL runner game built for the CS324E final project. The player logs in with a local user id, chooses one of three jungle stages, follows coin trails through scrolling lanes, collects rewards, avoids hazards, and survives the final boss encounter.
 
-The game mixes side-scrolling runner movement with a three-row depth system. In the main front view, the runner moves between front, middle, and back rows while the stage scrolls horizontally. Holding the top-view key switches to an overhead grid view of the same stage data, making it easier to understand lane placement, route structure, and upcoming hazards.
+The game mixes side-scrolling runner movement with a three-row depth system. In the front view, the runner moves between front, middle, and back rows while the stage scrolls horizontally. Holding the top-view key switches to an overhead grid view of the same stage data, making it easier to read lane placement, route markers, recommended coin paths, meteor targets, and upcoming hazards.
 
 ## Current Features
 
 - Local profile login using a typed user id.
-- Persistent save data for users, best scores, stage progress, star ratings, settings, lives, and collected out-of-stage items.
+- Persistent save data for users, best scores, stage progress, star ratings, settings, lives, score history, and collected out-of-stage item ids.
 - Main menu, how-to-play screen, stage select, gameplay, and game-over/stage-clear flows.
 - Three playable stages:
   - Stage 1: Overgrown Gate, an introductory route with safer hazards.
   - Stage 2: Serpent Causeway, a longer route with more lane changes and stronger hazards.
   - Stage 3: Sunken Idol, a denser final stage with a boss survival encounter.
 - Three-row runner movement with row depth, scaling, and lane layering.
-- Jump, double jump, slide, rope boost, shield protection, and temporary invulnerability after damage.
-- Pickups including coins, extra lives, shields, score boosters, rope items, and collectible out-of-stage item placeholders.
+- Jump, double jump, slide, rope use, shield protection, and temporary invulnerability after damage.
+- Rope items that can be spent with `R` for a short speed boost and protection outside the boss fight.
+- Pickups including coins, extra lives, shields, score boosters, rope items, and out-of-stage item placeholders.
+- Score boosters that activate a short `x10` scoring window for distance points and coins collected while active.
+- Breadcrumb coin trails that help show the recommended route through each stage.
 - Hazards including obstacles, meteors with top-view target warnings, straight projectiles, homing projectiles, multi-row obstacle clusters, and stage 3 boss attacks.
-- Branching route graph that pauses at route choices and lets the player pick a path.
+- A prototype route graph with approach, branch, and merge segments. Stage 2 and Stage 3 currently pause at branch choices.
 - Front-view gameplay and hold-to-preview top-view gameplay using the same generated stage grid.
-- Score calculation from distance, coins, boosters, and the stage 3 boss survival bonus.
+- Score calculation from boosted distance score, boosted coin score, and the stage 3 boss survival bonus.
 - Bronze, silver, and gold star thresholds per stage.
-- Sprite-based menu, background, player, item, and hazard assets loaded through MonoGame content.
+- Sprite-based menu, background, player, item, hazard, meteor, score booster, boss body, and boss boulder assets loaded through MonoGame content.
+- Damage feedback with screen shake and a red flash.
 
 ## Controls
 
@@ -43,13 +47,16 @@ The game mixes side-scrolling runner movement with a three-row depth system. In 
 2. Choose `Start Game`.
 3. Select a stage with the left and right arrow keys.
 4. Run through the scrolling jungle course, moving between rows to collect rewards and avoid hazards.
-5. At branch points, choose a route and press Enter to continue.
-6. Clear the stage by reaching the end with lives remaining. Stage 3 also requires surviving the Sunken Idol boss fight.
-7. Review the result screen, then return to stage select or the main menu.
+5. Use coin trails as guidance for the recommended path.
+6. At prototype branch points, choose a route and press Enter to continue.
+7. Clear the stage by reaching the end with lives remaining. Stage 3 also requires surviving the Sunken Idol boss fight.
+8. Review the result screen, then return to stage select or the main menu.
 
 ## Scoring and Progress
 
-The run score combines distance traveled, coins collected, score boosters, and the stage 3 boss survival bonus. Each stage has bronze, silver, and gold thresholds stored in its stage definition. When a run ends, the game saves the current user's best score, top score for that stage, star rating, completion state, remaining lives, score history, and collected out-of-stage item ids.
+The run score currently uses accumulated distance score, accumulated coin score, and the stage 3 boss survival bonus. Score boosters no longer give only a flat bonus. Instead, collecting one starts a short `x10` boost window. During that window, distance points earned while running and coins collected are multiplied by 10.
+
+Each stage has bronze, silver, and gold thresholds stored in its stage definition. When a run ends, the game saves the current user's best score, top score for that stage, star rating, completion state, remaining lives, score history, and collected out-of-stage item ids.
 
 Save data is written locally as JSON under the game's output directory:
 
@@ -61,13 +68,21 @@ SaveData/users.json
 
 Stages are generated by `StageFactory` from a `StageDefinition`. Each stage creates a three-row `GridWorld` with deterministic content placement based on the stage number, so the same stage has consistent hazards and rewards. Later stages increase pressure by changing rows more often, adding more dangerous obstacle clusters, and introducing homing projectiles.
 
-The stage route graph currently includes an approach segment, optional canopy and ruins routes, and a temple gate merge. Stage 2 and Stage 3 offer branching route choices. Stage 3 marks the final route as a boss route and triggers the Sunken Idol encounter near the end of the generated grid.
+After hazards and rewards are generated, the stage adds breadcrumb coins along a recommended path. These coins avoid existing hazards, boss tiles, and pickups where possible, so they work as route guidance without deleting other stage content.
+
+The route graph is still a prototype. It currently includes an approach segment, optional canopy and ruins routes, and a temple gate merge. Stage 2 and Stage 3 offer branch choices, and Stage 3 triggers the Sunken Idol encounter near the end of the generated grid. A fuller graph and route-selection system is planned.
+
+## Boss Encounter
+
+Stage 3 ends with the Sunken Idol boss. When the runner reaches the boss area, scrolling pauses and the player survives a timed battle. Spears must be avoided by sliding, and boulders must be avoided by jumping. The boss now uses a larger boss-body sprite, and boulder attacks use a dedicated boulder sprite.
+
+The boss is currently fixed on screen. Future work will add boss movement, dialogue before the boss fight, and a more RPG-like presentation.
 
 ## Architecture Overview
 
 The project is organized around MonoGame screens, world data, gameplay entities, and supporting systems:
 
-- `Game1.cs` and `Game1.Menu.cs` currently own the working prototype loop, including menu routing, drawing, gameplay simulation, saves, stage selection, and boss behavior.
+- `Game1.cs` and `Game1.Menu.cs` currently own the working prototype loop, including menu routing, drawing, gameplay simulation, saves, stage selection, scoring, route choices, and boss behavior.
 - `Screens/` contains the planned screen-based structure for login, menu, stage select, gameplay, pause, and game-over screens.
 - `World/` defines the grid world, tiles, route graph, stage nodes, stage definitions, row depth mapping, and scrolling state.
 - `Factory/` builds stages, tiles, and entities.
@@ -76,7 +91,7 @@ The project is organized around MonoGame screens, world data, gameplay entities,
 - `Core/` contains constants, input, audio, screen management, asset loading, collision helpers, game management, and save helpers.
 - `Rendering/` contains renderer classes for front view, top view, background, and debug drawing.
 - `Data/` contains save data, user profile, score, settings, and stage progress models.
-- `Content/` contains MonoGame content assets, fonts, backgrounds, player sprites, pickups, and hazards.
+- `Content/` contains MonoGame content assets, fonts, backgrounds, music, player sprites, pickups, hazards, meteors, boss sprites, and stage art.
 
 Some screen, rendering, component, and manager classes are present as the intended modular structure while the active implementation still lives mostly in `Game1` and `Game1.Menu`.
 
@@ -105,7 +120,16 @@ dotnet build
 
 - Move active gameplay ownership from `Game1.Menu.cs` into the screen classes.
 - Route drawing through `FrontViewRenderer` and `TopViewRenderer`.
-- Replace remaining proximity checks with the component/collision helper path.
-- Add a complete settings screen for difficulty, debug grid, and view preferences.
-- Expand authored stage layouts and tune hazards/rewards by difficulty.
-- Add audio feedback for menu selection, jumping, pickups, damage, stage clear, and game over.
+- Replace remaining proximity checks with precise collider and hitbox logic.
+- Revisit lane grounding so the runner, obstacles, projectiles, and barricades feel planted on the lanes.
+- Add boss movement patterns.
+- Add RPG-style dialogue for each stage and before the boss stage.
+- Improve player sprite animation with more running frames plus jump, slide, and rope sprites.
+- Add barricade sprites for obstacle tiles.
+- Expand rope action feedback.
+- Add more stages and authored layouts.
+- Replace the hardcoded prototype route graph with full graph and route-selection data.
+- Add a complete settings screen for difficulty, view mode, sound, controls, and display preferences.
+- Add character customization and usable out-of-stage items.
+- Add a user scoreboard at the end of each round.
+- Add more sound effects for menu selection, jumping, pickups, damage, stage clear, and game over.

@@ -10,7 +10,7 @@ public sealed class LoginScreen : IScreen
     // Updates the future user-id-only login screen.
     public void Update(GameTime gameTime)
     {
-        // TODO: Move the user id input currently implied by Game1 into this screen.
+        // TODO: Move user id input and profile loading out of Game1.Menu and into this screen.
     }
 
     // Draws the future user-id login UI.

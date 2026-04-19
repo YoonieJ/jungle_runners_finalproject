@@ -11,6 +11,7 @@ public sealed class GameOverScreen : IScreen
     // Updates future game-over input and transition behavior.
     public void Update(GameTime gameTime)
     {
+        // TODO: Show the current user's round result, scoreboard, stars, and next-stage unlock state.
     }
 
     // Draws the future standalone game-over screen.

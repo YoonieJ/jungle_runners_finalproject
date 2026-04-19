@@ -10,7 +10,8 @@ public sealed class StageSelectScreen : IScreen
     // Updates future stage-select navigation and unlock display state.
     public void Update(GameTime gameTime)
     {
-        // TODO: Read saved StageProgress here so locked/completed stages and best scores are visible.
+        // TODO: Read saved StageProgress so locked/completed stages, best scores, and route choices are visible.
+        // TODO: Trigger stage intro dialogue before gameplay starts.
     }
 
     // Draws the future standalone stage-select screen.
