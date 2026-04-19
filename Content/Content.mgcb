@@ -148,30 +148,6 @@
 /processorParam:TextureFormat=Color
 /build:player_1.png
 
-#begin player_1.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
-/processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:player_1.png
-
-#begin player_2.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
-/processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:player_2.png
-
 #begin player_2.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -285,4 +261,3 @@
 /processor:SongProcessor
 /processorParam:Quality=Best
 /build:williamhector-cinematic-action-jungle-drums-loop-125bpm-345139.mp3
-
