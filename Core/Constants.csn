@@ -15,6 +15,10 @@ public static class Constants
     public const float ScrollSpeed = 260f;
     public const int CoinScoreValue = 45;
     public const int BoosterScoreValue = 180;
-    public const float GameplayTileSpacing = 150f;
-    public const float RunnerX = 210f;
 }
+^O
+public const float GameplayTileSpacing = 150f;
+public const float RunnerX = 210f;
+
+^X
+

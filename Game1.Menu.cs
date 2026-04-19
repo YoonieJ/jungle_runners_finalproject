@@ -415,21 +415,12 @@ public partial class Game1
         DrawGameplayBackground();
         DrawFrontLanes();
 
+	Rectangle viewport = new((int)(SpawnScreenOffset - _worldScroller.OffsetX), 0, WindowWidth, WindowHeight);
+	_frontViewRenderer.Draw(_spriteBatch, _activeStageData.World, viewport);
+	
+
         for (int row = Constants.BackLayer; row >= Constants.FrontLayer; row--)
         {
-            foreach (Tile tile in _activeStageData.World.AllTiles.Where(tile => tile.Row == row))
-            {
-                float x = GetTileScreenX(tile.Column);
-                if (x < -100f || x > WindowWidth + 100f)
-                {
-                    continue;
-                }
-
-                if (tile.HasContent)
-                {
-                    DrawFrontTile(tile, x);
-                }
-            }
 
             DrawMapProjectilesFront(row);
 
@@ -1354,31 +1345,7 @@ public partial class Game1
         }
     }
 
-    // Draws one visible tile or tile content marker in the front-view lane space.
-    private void DrawFrontTile(Tile tile, float x)
-    {
-        float scale = _rowDepthMapper.GetScale(tile.Row);
-        float groundY = _rowDepthMapper.GetGroundY(tile.Row);
-        Color color = GetTileColor(tile);
-
-        if (tile.Content == TileContent.Meteor)
-        {
-            DrawMeteorFrontTile(tile, x, scale, groundY);
-            return;
-        }
-
-        Rectangle destination = GetFrontTileBounds(tile, x);
-
-        Texture2D? texture = GetTileContentTexture(tile.Content);
-        if (texture is not null)
-        {
-            DrawTextureInBounds(texture, destination, Color.White);
-            return;
-        }
-
-        _spriteBatch.Draw(_pixel, destination, color);
-    }
-
+    
     // Returns the runner's front-view visual bounds using the same lane ground as hazards.
     private Rectangle GetPlayerFrontBounds()
     {
