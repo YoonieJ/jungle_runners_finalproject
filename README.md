@@ -1,13 +1,13 @@
 # Jungle Runners
 
-Jungle Runners is a MonoGame DesktopGL staged-based runner game. The player logs in with a local user id, chooses one of three jungle stages, follows coin trails through scrolling lanes, collects rewards, avoids hazards, and survives the final boss encounter.
+Jungle Runners is a MonoGame DesktopGL staged-based runner game. The player logs in with a local user ID, chooses one of the available jungle stages, follows coin trails through scrolling lanes, collects rewards, avoids hazards, and survives each stage. For the boss stage, the player must complete the stage and survive the final boss encounter.
 
-The game mixes side-scrolling runner movement with a three-row depth system. In the front view, the runner moves between front, middle, and back rows while the stage scrolls horizontally. Holding the top-view key switches to an overhead grid view of the same stage data, making it easier to read lane placement, route markers, recommended coin paths, meteor targets, and upcoming hazards.
+The game mixes side-scrolling runner movement with a three-row depth system. In the front view, the runner moves between the front, middle, and back rows while the stage scrolls horizontally. Holding the top-view key switches to an overhead grid view of the same stage data, making it easier to read lane placement, route markers, recommended coin paths, meteor targets, and upcoming hazards.
 
 ## Current Features
 
-- Local profile login using a typed user id.
-- Persistent save data for users, best scores, stage progress, star ratings, settings, lives, score history, and collected out-of-stage item ids.
+- Local profile login using a typed user ID.
+- Persistent save data for users, best scores, stage progress, star ratings, settings, lives, score history, and collected out-of-stage item IDs.
 - Main menu, how-to-play screen, stage select, gameplay, and game-over/stage-clear flows.
 - Three playable stages:
   - Stage 1: Overgrown Gate, an introductory route with safer hazards.
@@ -16,10 +16,10 @@ The game mixes side-scrolling runner movement with a three-row depth system. In 
 - Three-row runner movement with row depth, scaling, and lane layering.
 - Jump, double jump, slide, rope use, shield protection, and temporary invulnerability after damage.
 - Rope items that can be spent with `R` for a short speed boost and protection outside the boss fight.
-- Pickups including coins, extra lives, shields, score boosters, rope items, and out-of-stage item placeholders.
+- Pickups include coins, extra lives, shields, score boosters, rope items, and out-of-stage item placeholders.
 - Score boosters that activate a short `x10` scoring window for distance points and coins collected while active.
 - Breadcrumb coin trails that help show the recommended route through each stage.
-- Hazards including obstacles, meteors with top-view target warnings, straight projectiles, homing projectiles, multi-row obstacle clusters, and stage 3 boss attacks.
+- Hazards include obstacles, meteors with top-view target warnings, straight projectiles, homing projectiles, multi-row obstacle clusters, and stage 3 boss attacks.
 - A prototype route graph with approach, branch, and merge segments. Stage 2 and Stage 3 currently pause at branch choices.
 - Front-view gameplay and hold-to-preview top-view gameplay using the same generated stage grid.
 - Score calculation from boosted distance score, boosted coin score, and the stage 3 boss survival bonus.
@@ -116,7 +116,7 @@ To build without launching:
 dotnet build
 ```
 
-## Known Next Steps
+## Next Steps
 
 - Move active gameplay ownership from `Game1.Menu.cs` into the screen classes.
 - Route drawing through `FrontViewRenderer` and `TopViewRenderer`.
