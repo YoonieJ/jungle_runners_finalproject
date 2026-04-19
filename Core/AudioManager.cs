@@ -14,12 +14,12 @@ public sealed class AudioManager
     private Song? _mediumMusic;
     private Song? _hardMusic;
 
-    public void LoadContent(ContentManager Content)
+    public void LoadContent(ContentManager content)
     {
-        _startMusic = Content.Load<Song>("sonican-lo-fi-music-loop-sentimental-jazzy-love-473154");
-        _easyMusic = Content.Load<Song>("redproductions-african-rhythm-africa-groovy-sport-stomping-music-20622");
-        _mediumMusic = Content.Load<Song>("os_music-jungle-percussion-beat-royalty-free-music-482338");
-        _hardMusic = Content.Load<Song>("williamhector-cinematic-action-jungle-drums-loop-125bpm-345139");
+        _startMusic = content.Load<Song>("sonican-lo-fi-music-loop-sentimental-jazzy-love-473154");
+        _easyMusic = content.Load<Song>("redproductions-african-rhythm-africa-groovy-sport-stomping-music-20622");
+        _mediumMusic = content.Load<Song>("os_music-jungle-percussion-beat-royalty-free-music-482338");
+        _hardMusic = content.Load<Song>("williamhector-cinematic-action-jungle-drums-loop-125bpm-345139");
 
         MediaPlayer.IsRepeating = true;
         MediaPlayer.Volume = MusicVolume;
@@ -29,7 +29,7 @@ public sealed class AudioManager
     {
         if (IsMuted) return;
 
-        Song songToPlay = level switch
+        Song? songToPlay = level switch
         {
             0 => _startMusic,
             1 => _easyMusic,
@@ -38,7 +38,7 @@ public sealed class AudioManager
             _ => _startMusic
         };
 
-        if (MediaPlayer.Queue.ActiveSong != songToPlay)
+        if (songToPlay is not null && MediaPlayer.Queue.ActiveSong != songToPlay)
         {
             MediaPlayer.Play(songToPlay);
         }
