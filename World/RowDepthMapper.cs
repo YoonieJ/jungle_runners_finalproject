@@ -4,11 +4,10 @@ namespace jungle_runners_finalproject;
 
 public sealed class RowDepthMapper
 {
-    // TODO: Revisit these ground lines so the runner, barricades, and projectiles feel planted in each lane.
     public int MinRow { get; set; }
     public int MaxRow { get; set; } = Constants.GameplayRows - 1;
-    public float ClosestGroundY { get; set; } = 610f;
-    public float FarthestGroundY { get; set; } = 430f;
+    public float ClosestGroundY { get; set; } = 642f;
+    public float FarthestGroundY { get; set; } = 478f;
     public float ClosestScale { get; set; } = 1.1f;
     public float FarthestScale { get; set; } = 0.90f;
 

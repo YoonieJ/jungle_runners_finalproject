@@ -22,12 +22,17 @@ public partial class Game1
     private const float BossAttackMaxInterval = 1.05f;
     private const string BossName = "THE SUNKEN IDOL";
     private const float MapProjectileActivationPadding = 220f;
-    private const float MapProjectileCollisionWidth = 56f;
     private const float MapProjectileStandardSpeed = 520f;
     private const float MapProjectileHomingSpeed = 430f;
     private const float MapProjectileHomingInterval = 0.42f;
-    private const float MeteorFrontRevealDistance = 270f;
-    private const float MeteorJumpClearHeight = 120f;
+    private const float MeteorFrontRevealDistance = 340f;
+    private const float MeteorDiagonalStartOffsetX = 190f;
+    private const float MeteorDiagonalStartOffsetY = 280f;
+    private const float LaneGroundInset = 54f;
+    private const float LaneBandHeight = 96f;
+    private const float PlayerHitboxInsetXRatio = 0.22f;
+    private const float PlayerHitboxTopInsetRatio = 0.12f;
+    private const float PlayerHitboxBottomInsetRatio = 0.08f;
 
     private readonly List<BossAttack> _bossAttacks = [];
     private readonly List<MapProjectile> _mapProjectiles = [];
@@ -410,29 +415,37 @@ public partial class Game1
         DrawGameplayBackground();
         DrawFrontLanes();
 
-        foreach (Tile tile in _activeStageData.World.AllTiles.OrderByDescending(tile => tile.Row))
+        for (int row = Constants.BackLayer; row >= Constants.FrontLayer; row--)
         {
-            float x = GetTileScreenX(tile.Column);
-            if (x < -100f || x > WindowWidth + 100f)
+            foreach (Tile tile in _activeStageData.World.AllTiles.Where(tile => tile.Row == row))
             {
-                continue;
+                float x = GetTileScreenX(tile.Column);
+                if (x < -100f || x > WindowWidth + 100f)
+                {
+                    continue;
+                }
+
+                if (tile.HasContent)
+                {
+                    DrawFrontTile(tile, x);
+                }
             }
 
-            if (tile.HasContent || tile.Type is TileType.Branch or TileType.Merge)
+            DrawMapProjectilesFront(row);
+
+            if (_playerRow == row)
             {
-                DrawFrontTile(tile, x);
+                DrawPlayerFront();
             }
         }
+    }
 
-        DrawMapProjectilesFront();
-
-        float playerScale = _rowDepthMapper.GetScale(_playerRow);
-        float playerHeight = _slideTimer > 0f ? 92f * playerScale : 176f * playerScale;
-        float playerWidth = 92f * playerScale;
-        float playerY = _rowDepthMapper.GetGroundY(_playerRow) - playerHeight - _playerJumpOffset;
+    // Draws the runner in its current lane layer.
+    private void DrawPlayerFront()
+    {
         Color playerColor = GetPlayerDamageBlinkColor();
         Texture2D playerTexture = GetPlayerRunFrame();
-        _spriteBatch.Draw(playerTexture, new Rectangle((int)RunnerX, (int)playerY, (int)playerWidth, (int)playerHeight), playerColor);
+        _spriteBatch.Draw(playerTexture, GetPlayerFrontBounds(), playerColor);
     }
 
     // Draws the overhead grid view of the same stage data.
@@ -482,6 +495,10 @@ public partial class Game1
 
         Rectangle bossImage = new(WindowWidth - 450, 220, 360, 390);
         DrawTextureInBounds(_bossBodyTexture, bossImage, Color.White);
+        if (_viewMode == ViewMode.Front)
+        {
+            DrawPlayerFront();
+        }
 
         if (_bossIntroActive)
         {
@@ -493,10 +510,8 @@ public partial class Game1
 
         foreach (BossAttack attack in _bossAttacks)
         {
-            Vector2 size = GetBossAttackSize(attack);
-            Rectangle attackBounds = new((int)attack.Position.X, (int)attack.Position.Y, (int)size.X, (int)size.Y);
             Texture2D attackTexture = attack.Kind == BossAttackKind.Spear ? _bossArrowTexture : _bossBoulderTexture;
-            DrawTextureInBounds(attackTexture, attackBounds, Color.White);
+            DrawTextureInBounds(attackTexture, GetBossAttackBounds(attack), Color.White);
         }
 
         PixelFont.Draw(_spriteBatch, _pixel, $"{BossName} {MathF.Ceiling(_bossFightTimer)}", 220, 120, 4, Color.Gold);
@@ -973,7 +988,7 @@ public partial class Game1
         int row = _runRandom.Next(Constants.FrontLayer, Constants.BackLayer + 1);
         float scale = _rowDepthMapper.GetScale(row);
         float groundY = _rowDepthMapper.GetGroundY(row);
-        float y = kind == BossAttackKind.Spear ? groundY - 118f * scale : groundY - 72f * scale;
+        float y = kind == BossAttackKind.Spear ? groundY - 136f * scale : groundY - 72f * scale;
         float speed = kind == BossAttackKind.Spear ? 620f : 470f;
 
         _bossAttacks.Add(new BossAttack(kind, row, new Vector2(WindowWidth - 330f, y), speed));
@@ -986,10 +1001,9 @@ public partial class Game1
         {
             BossAttack attack = _bossAttacks[i];
             attack.Position = new Vector2(attack.Position.X - attack.Speed * deltaSeconds, attack.Position.Y);
-            Vector2 size = GetBossAttackSize(attack);
-
-            bool overlapsRunner = attack.Position.X < RunnerX + PlayerCollisionWidth && attack.Position.X + size.X > RunnerX - PlayerCollisionWidth;
-            if (!attack.HasCheckedCollision && overlapsRunner && attack.Row == _playerRow)
+            Rectangle attackBounds = GetBossAttackBounds(attack);
+            Rectangle playerBounds = GetPlayerCollisionBounds();
+            if (!attack.HasCheckedCollision && attack.Row == _playerRow && playerBounds.Intersects(attackBounds))
             {
                 bool avoided = attack.Kind == BossAttackKind.Spear ? _slideTimer > 0f : _playerJumpOffset >= 56f;
                 if (!avoided)
@@ -1004,7 +1018,7 @@ public partial class Game1
                 attack.HasCheckedCollision = true;
             }
 
-            if (attack.Position.X + size.X < -40f)
+            if (attackBounds.Right < -40)
             {
                 _bossAttacks.RemoveAt(i);
             }
@@ -1018,6 +1032,13 @@ public partial class Game1
         return attack.Kind == BossAttackKind.Spear
             ? new Vector2(160f * scale, 30f * scale)
             : new Vector2(72f * scale, 72f * scale);
+    }
+
+    // Returns the visual and collision bounds for an active boss attack.
+    private Rectangle GetBossAttackBounds(BossAttack attack)
+    {
+        Vector2 size = GetBossAttackSize(attack);
+        return new Rectangle((int)attack.Position.X, (int)attack.Position.Y, (int)size.X, (int)size.Y);
     }
 
     // Clears normal map projectile state between stage attempts.
@@ -1085,10 +1106,10 @@ public partial class Game1
                 }
             }
 
-            Vector2 size = GetMapProjectileSize(projectile);
-            bool overlapsRunner = projectile.Position.X < RunnerX + MapProjectileCollisionWidth
-                && projectile.Position.X + size.X > RunnerX - MapProjectileCollisionWidth;
-            if (!projectile.HasCheckedCollision && overlapsRunner && projectile.Row == _playerRow)
+            projectile.Position = new Vector2(projectile.Position.X, GetMapProjectileY(projectile.Row, projectile.Kind));
+            Rectangle projectileBounds = GetMapProjectileBounds(projectile);
+            Rectangle playerBounds = GetPlayerCollisionBounds();
+            if (!projectile.HasCheckedCollision && projectile.Row == _playerRow && playerBounds.Intersects(projectileBounds))
             {
                 bool avoided = projectile.Kind == TileContent.Projectile ? _slideTimer > 0f : _playerJumpOffset >= 56f;
                 if (!avoided)
@@ -1103,7 +1124,7 @@ public partial class Game1
                 projectile.HasCheckedCollision = true;
             }
 
-            if (projectile.Position.X + size.X < -40f)
+            if (projectileBounds.Right < -40)
             {
                 _mapProjectiles.RemoveAt(i);
             }
@@ -1111,12 +1132,11 @@ public partial class Game1
     }
 
     // Draws active flying map projectiles in front-view lane space.
-    private void DrawMapProjectilesFront()
+    private void DrawMapProjectilesFront(int row)
     {
-        foreach (MapProjectile projectile in _mapProjectiles.OrderByDescending(projectile => projectile.Row))
+        foreach (MapProjectile projectile in _mapProjectiles.Where(projectile => projectile.Row == row))
         {
-            Vector2 size = GetMapProjectileSize(projectile);
-            Rectangle bounds = new((int)projectile.Position.X, (int)projectile.Position.Y, (int)size.X, (int)size.Y);
+            Rectangle bounds = GetMapProjectileBounds(projectile);
             Texture2D? texture = GetTileContentTexture(projectile.Kind);
             if (texture is null)
             {
@@ -1158,7 +1178,7 @@ public partial class Game1
     {
         float scale = _rowDepthMapper.GetScale(row);
         float groundY = _rowDepthMapper.GetGroundY(row);
-        return kind == TileContent.HomingProjectile ? groundY - 112f * scale : groundY - 92f * scale;
+        return kind == TileContent.HomingProjectile ? groundY - 74f * scale : groundY - 136f * scale;
     }
 
     // Returns screen-space projectile size with row depth applied.
@@ -1170,6 +1190,13 @@ public partial class Game1
             : new Vector2(138f * scale, 30f * scale);
     }
 
+    // Returns the visual and collision bounds for an active map projectile.
+    private Rectangle GetMapProjectileBounds(MapProjectile projectile)
+    {
+        Vector2 size = GetMapProjectileSize(projectile);
+        return new Rectangle((int)projectile.Position.X, (int)projectile.Position.Y, (int)size.X, (int)size.Y);
+    }
+
     // Uses different placeholder colors for straight and homing map projectiles.
     private static Color GetMapProjectileColor(MapProjectile projectile)
     {
@@ -1179,8 +1206,9 @@ public partial class Game1
     // Checks the runner against nearby tile content and applies pickups or damage.
     private void ResolveGridInteractions()
     {
-        // TODO: Replace screen-x proximity checks with ColliderComponent/CollisionHelper so player,
-        // items, projectiles, obstacles, boss attacks, jump arcs, and slide bounds share precise hitboxes.
+        Rectangle playerHitBounds = GetPlayerCollisionBounds();
+        Rectangle playerPickupBounds = GetPlayerPickupBounds();
+
         foreach (Tile tile in _activeStageData.World.AllTiles)
         {
             if (!tile.HasContent || tile.Row != _playerRow)
@@ -1189,8 +1217,11 @@ public partial class Game1
             }
 
             float x = GetTileScreenX(tile.Column);
-            bool isAtRunner = x > RunnerX - PlayerCollisionWidth && x < RunnerX + PlayerCollisionWidth;
-            if (!isAtRunner)
+            Rectangle tileBounds = GetFrontTileCollisionBounds(tile, x);
+            bool touchesPlayer = IsPickupContent(tile.Content)
+                ? playerPickupBounds.Intersects(tileBounds)
+                : playerHitBounds.Intersects(tileBounds);
+            if (!touchesPlayer)
             {
                 continue;
             }
@@ -1235,7 +1266,7 @@ public partial class Game1
                     tile.Content = TileContent.Empty;
                     break;
                 case TileContent.Meteor:
-                    if (_playerJumpOffset < MeteorJumpClearHeight)
+                    if (playerHitBounds.Intersects(tileBounds))
                     {
                         DamagePlayer();
                     }
@@ -1245,10 +1276,7 @@ public partial class Game1
                     StartBossEncounter();
                     break;
                 case TileContent.Obstacle:
-                    if (_playerJumpOffset < 56f)
-                    {
-                        DamagePlayer();
-                    }
+                    DamagePlayer();
                     tile.Content = TileContent.Empty;
                     break;
             }
@@ -1261,6 +1289,19 @@ public partial class Game1
         // TODO: Let users equip out-of-stage items and use them for character customization or run bonuses.
         string itemId = $"{tile.Content}-S{_activeStage.Number}-C{tile.Column}-R{tile.Row}";
         _collectedItemsThisRun.Add(itemId);
+    }
+
+    // Returns true for tile contents that should feel forgiving to collect.
+    private static bool IsPickupContent(TileContent content)
+    {
+        return content is TileContent.Coin
+            or TileContent.LifeItem
+            or TileContent.ScoreBooster
+            or TileContent.StageItem
+            or TileContent.RopeItem
+            or TileContent.OutOfStageItem
+            or TileContent.Collectible
+            or TileContent.Item;
     }
 
     // Applies damage, temporary invulnerability, and the transition to game over.
@@ -1307,7 +1348,9 @@ public partial class Game1
                 _ => new Color(30, 88, 67)
             };
 
-            _spriteBatch.Draw(_pixel, new Rectangle(0, (int)(y - 10f * scale), WindowWidth, (int)(70f * scale)), laneColor * 0.5f);
+            int laneTop = (int)(y - LaneGroundInset * scale);
+            int laneHeight = (int)(LaneBandHeight * scale);
+            _spriteBatch.Draw(_pixel, new Rectangle(0, laneTop, WindowWidth, laneHeight), laneColor * 0.5f);
         }
     }
 
@@ -1324,10 +1367,7 @@ public partial class Game1
             return;
         }
 
-        int width = (int)(TileVisualWidth(tile) * scale);
-        int height = (int)(TileVisualHeight(tile) * scale);
-        int y = (int)(groundY - height);
-        Rectangle destination = new((int)x, y, width, height);
+        Rectangle destination = GetFrontTileBounds(tile, x);
 
         Texture2D? texture = GetTileContentTexture(tile.Content);
         if (texture is not null)
@@ -1337,6 +1377,70 @@ public partial class Game1
         }
 
         _spriteBatch.Draw(_pixel, destination, color);
+    }
+
+    // Returns the runner's front-view visual bounds using the same lane ground as hazards.
+    private Rectangle GetPlayerFrontBounds()
+    {
+        float playerScale = _rowDepthMapper.GetScale(_playerRow);
+        int playerHeight = (int)((_slideTimer > 0f ? 92f : 176f) * playerScale);
+        int playerWidth = (int)(92f * playerScale);
+        int playerY = (int)(_rowDepthMapper.GetGroundY(_playerRow) - playerHeight - _playerJumpOffset);
+        return new Rectangle((int)RunnerX, playerY, playerWidth, playerHeight);
+    }
+
+    // Shrinks transparent sprite space so damage matches the visible runner body.
+    private Rectangle GetPlayerCollisionBounds()
+    {
+        Rectangle bounds = GetPlayerFrontBounds();
+        int insetX = (int)(bounds.Width * PlayerHitboxInsetXRatio);
+        int topInset = (int)(bounds.Height * PlayerHitboxTopInsetRatio);
+        int bottomInset = (int)(bounds.Height * PlayerHitboxBottomInsetRatio);
+        return new Rectangle(
+            bounds.X + insetX,
+            bounds.Y + topInset,
+            Math.Max(1, bounds.Width - insetX * 2),
+            Math.Max(1, bounds.Height - topInset - bottomInset));
+    }
+
+    // Gives pickups a little grace without affecting hazard damage.
+    private Rectangle GetPlayerPickupBounds()
+    {
+        return GetPlayerCollisionBounds().InflateBy(18);
+    }
+
+    // Returns the front-view visual bounds for a tile marker or tile content.
+    private Rectangle GetFrontTileBounds(Tile tile, float x)
+    {
+        float scale = _rowDepthMapper.GetScale(tile.Row);
+        float groundY = _rowDepthMapper.GetGroundY(tile.Row);
+        int width = (int)(TileVisualWidth(tile) * scale);
+        int height = (int)(TileVisualHeight(tile) * scale);
+        return new Rectangle((int)x, (int)(groundY - height), width, height);
+    }
+
+    // Returns collision bounds that match the visual marker used in front view.
+    private Rectangle GetFrontTileCollisionBounds(Tile tile, float x)
+    {
+        if (tile.Content == TileContent.Meteor)
+        {
+            float scale = _rowDepthMapper.GetScale(tile.Row);
+            float groundY = _rowDepthMapper.GetGroundY(tile.Row);
+            return GetMeteorFrontTargetBounds(tile, x, scale, groundY);
+        }
+
+        Rectangle bounds = GetFrontTileBounds(tile, x);
+        return tile.Content switch
+        {
+            TileContent.Coin or TileContent.LifeItem or TileContent.ScoreBooster or TileContent.StageItem
+                or TileContent.RopeItem or TileContent.OutOfStageItem or TileContent.Collectible or TileContent.Item
+                => bounds.InflateBy(8),
+            TileContent.Projectile or TileContent.HomingProjectile
+                => bounds.InflateBy(-Math.Max(2, bounds.Height / 8)),
+            TileContent.Obstacle
+                => bounds.InflateBy(-Math.Max(2, bounds.Width / 12)),
+            _ => bounds
+        };
     }
 
     // Draws the scrollable overhead grid and the player's current row.
@@ -1626,42 +1730,75 @@ public partial class Game1
         }
 
         float revealProgress = MathHelper.Clamp(1f - MathF.Max(0f, distanceToRunner) / MeteorFrontRevealDistance, 0f, 1f);
-        int targetWidth = (int)(TileVisualWidth(tile) * scale);
-        int targetHeight = Math.Max(8, (int)(18f * scale));
-        Rectangle target = new((int)x, (int)(groundY - targetHeight), targetWidth, targetHeight);
-        Color targetColor = Color.Lerp(Color.OrangeRed, Color.Yellow, revealProgress) * 0.68f;
-        _spriteBatch.Draw(_pixel, target, targetColor);
-        DrawRectangleOutline(target, Math.Max(2, (int)(3f * scale)), Color.Red * 0.82f);
+        Rectangle target = GetMeteorFrontTargetBounds(tile, x, scale, groundY);
+        DrawMeteorTarget(target, revealProgress);
 
         int meteorSize = Math.Max(24, (int)(78f * scale));
-        float startY = groundY - 250f * scale;
+        float impactX = target.Center.X - meteorSize / 2f;
         float impactY = groundY - meteorSize;
-        int meteorX = target.X + (target.Width - meteorSize) / 2;
-        int meteorY = (int)MathHelper.Lerp(startY, impactY, revealProgress);
-        Rectangle meteorBounds = new(meteorX, meteorY, meteorSize, meteorSize);
-        Rectangle trail = new(
-            meteorBounds.X + meteorBounds.Width / 3,
-            meteorBounds.Y - Math.Max(8, (int)(36f * scale)),
-            Math.Max(8, meteorBounds.Width / 3),
-            Math.Max(12, (int)(44f * scale)));
+        float startX = impactX + MeteorDiagonalStartOffsetX * scale;
+        float startY = impactY - MeteorDiagonalStartOffsetY * scale;
+        Vector2 meteorPosition = new(
+            MathHelper.Lerp(startX, impactX, revealProgress),
+            MathHelper.Lerp(startY, impactY, revealProgress));
+        Rectangle meteorBounds = new((int)meteorPosition.X, (int)meteorPosition.Y, meteorSize, meteorSize);
 
-        _spriteBatch.Draw(_pixel, trail, Color.OrangeRed * 0.45f);
+        Vector2 meteorCenter = new(meteorBounds.Center.X, meteorBounds.Center.Y);
+        Vector2 trailEnd = meteorCenter + new Vector2(32f * scale, -36f * scale);
+        Vector2 trailStart = trailEnd + new Vector2(92f * scale, -112f * scale);
+        DrawLine(trailStart, trailEnd, Math.Max(6, (int)(12f * scale)), Color.OrangeRed * 0.34f);
+        DrawLine(trailStart + new Vector2(18f * scale, -16f * scale), meteorCenter, Math.Max(3, (int)(5f * scale)), Color.Yellow * 0.42f);
+
         DrawTextureInBounds(_meteorTexture, meteorBounds, Color.White);
+    }
+
+    // Returns the ground target bounds used for both meteor drawing and collision.
+    private static Rectangle GetMeteorFrontTargetBounds(Tile tile, float x, float scale, float groundY)
+    {
+        int targetSize = Math.Max(28, (int)(88f * scale));
+        int targetX = (int)(x + (TileVisualWidth(tile) * scale - targetSize) / 2f);
+        return new Rectangle(targetX, (int)(groundY - targetSize), targetSize, targetSize);
     }
 
     // Marks meteor impact tiles clearly in top view before the meteor is visible in side view.
     private void DrawMeteorTarget(Rectangle bounds)
     {
-        _spriteBatch.Draw(_pixel, bounds, Color.OrangeRed * 0.18f);
-        DrawRectangleOutline(bounds, 3, Color.OrangeRed);
+        DrawMeteorTarget(bounds, 1f);
+    }
 
-        int centerX = bounds.X + bounds.Width / 2;
-        int centerY = bounds.Y + bounds.Height / 2;
-        _spriteBatch.Draw(_pixel, new Rectangle(centerX - 2, bounds.Y + 6, 4, bounds.Height - 12), Color.Gold);
-        _spriteBatch.Draw(_pixel, new Rectangle(bounds.X + 6, centerY - 2, bounds.Width - 12, 4), Color.Gold);
+    // Draws a circular red bullseye warning for meteor impact zones.
+    private void DrawMeteorTarget(Rectangle bounds, float intensity)
+    {
+        float alpha = MathHelper.Clamp(intensity, 0.35f, 1f);
+        Rectangle circleBounds = SquareInside(bounds);
+        DrawFilledEllipse(circleBounds.InflateBy(4), Color.Black * 0.26f);
+        DrawEllipseRing(circleBounds.InflateBy(3), Math.Max(2, circleBounds.Width / 16), Color.White * (0.40f + 0.22f * alpha));
+        DrawFilledEllipse(circleBounds, Color.Red * (0.16f + 0.16f * alpha));
+        DrawEllipseRing(circleBounds, Math.Max(2, circleBounds.Width / 14), Color.Red * (0.72f + 0.2f * alpha));
+        DrawEllipseRing(circleBounds.InflateBy(-circleBounds.Width / 4), Math.Max(2, circleBounds.Width / 18), Color.OrangeRed * (0.82f + 0.12f * alpha));
 
-        Rectangle inner = new(bounds.X + bounds.Width / 4, bounds.Y + bounds.Height / 4, bounds.Width / 2, bounds.Height / 2);
-        DrawRectangleOutline(inner, 2, Color.Red);
+        int dotSize = Math.Max(4, circleBounds.Width / 7);
+        Rectangle centerDot = new(
+            circleBounds.Center.X - dotSize / 2,
+            circleBounds.Center.Y - dotSize / 2,
+            dotSize,
+            dotSize);
+        DrawFilledEllipse(centerDot, Color.Red);
+
+        int alertHeight = Math.Max(8, circleBounds.Height / 3);
+        int alertWidth = Math.Max(2, circleBounds.Width / 12);
+        Rectangle alertStem = new(
+            circleBounds.Center.X - alertWidth / 2,
+            circleBounds.Center.Y - alertHeight / 2,
+            alertWidth,
+            alertHeight);
+        Rectangle alertDot = new(
+            circleBounds.Center.X - alertWidth / 2,
+            circleBounds.Center.Y + alertHeight / 3,
+            alertWidth,
+            alertWidth);
+        _spriteBatch.Draw(_pixel, alertStem, Color.White * (0.55f + 0.25f * alpha));
+        _spriteBatch.Draw(_pixel, alertDot, Color.White * (0.55f + 0.25f * alpha));
     }
 
     // Draws an asset centered inside a gameplay rectangle without squashing its pixels.
@@ -1677,6 +1814,123 @@ public partial class Game1
             height);
 
         _spriteBatch.Draw(texture, destination, color);
+    }
+
+    // Draws a thick line using the shared one-pixel texture.
+    private void DrawLine(Vector2 start, Vector2 end, int thickness, Color color)
+    {
+        Vector2 delta = end - start;
+        float length = delta.Length();
+        if (length <= 0f || thickness <= 0)
+        {
+            return;
+        }
+
+        float rotation = MathF.Atan2(delta.Y, delta.X);
+        _spriteBatch.Draw(
+            _pixel,
+            start,
+            null,
+            color,
+            rotation,
+            new Vector2(0f, 0.5f),
+            new Vector2(length, thickness),
+            SpriteEffects.None,
+            0f);
+    }
+
+    // Returns the largest centered square that fits inside a rectangle.
+    private static Rectangle SquareInside(Rectangle bounds)
+    {
+        int size = Math.Min(bounds.Width, bounds.Height);
+        return new Rectangle(
+            bounds.X + (bounds.Width - size) / 2,
+            bounds.Y + (bounds.Height - size) / 2,
+            size,
+            size);
+    }
+
+    // Fills an ellipse using horizontal pixel spans.
+    private void DrawFilledEllipse(Rectangle bounds, Color color)
+    {
+        if (bounds.Width <= 0 || bounds.Height <= 0)
+        {
+            return;
+        }
+
+        float radiusX = bounds.Width / 2f;
+        float radiusY = bounds.Height / 2f;
+        float centerX = bounds.X + radiusX;
+        float centerY = bounds.Y + radiusY;
+
+        for (int y = bounds.Top; y < bounds.Bottom; y++)
+        {
+            float normalizedY = (y + 0.5f - centerY) / radiusY;
+            float halfWidth = radiusX * MathF.Sqrt(MathF.Max(0f, 1f - normalizedY * normalizedY));
+            int left = (int)MathF.Ceiling(centerX - halfWidth);
+            int right = (int)MathF.Floor(centerX + halfWidth);
+
+            if (right >= left)
+            {
+                _spriteBatch.Draw(_pixel, new Rectangle(left, y, right - left + 1, 1), color);
+            }
+        }
+    }
+
+    // Draws an ellipse outline by painting only the outer band of an ellipse.
+    private void DrawEllipseRing(Rectangle bounds, int thickness, Color color)
+    {
+        if (bounds.Width <= 0 || bounds.Height <= 0 || thickness <= 0)
+        {
+            return;
+        }
+
+        float outerRadiusX = bounds.Width / 2f;
+        float outerRadiusY = bounds.Height / 2f;
+        float innerRadiusX = MathF.Max(0f, outerRadiusX - thickness);
+        float innerRadiusY = MathF.Max(0f, outerRadiusY - thickness);
+        float centerX = bounds.X + outerRadiusX;
+        float centerY = bounds.Y + outerRadiusY;
+
+        for (int y = bounds.Top; y < bounds.Bottom; y++)
+        {
+            float outerNormalizedY = (y + 0.5f - centerY) / outerRadiusY;
+            if (MathF.Abs(outerNormalizedY) > 1f)
+            {
+                continue;
+            }
+
+            float outerHalfWidth = outerRadiusX * MathF.Sqrt(MathF.Max(0f, 1f - outerNormalizedY * outerNormalizedY));
+            int outerLeft = (int)MathF.Ceiling(centerX - outerHalfWidth);
+            int outerRight = (int)MathF.Floor(centerX + outerHalfWidth);
+
+            if (innerRadiusX <= 0f || innerRadiusY <= 0f)
+            {
+                _spriteBatch.Draw(_pixel, new Rectangle(outerLeft, y, outerRight - outerLeft + 1, 1), color);
+                continue;
+            }
+
+            float innerNormalizedY = (y + 0.5f - centerY) / innerRadiusY;
+            if (MathF.Abs(innerNormalizedY) >= 1f)
+            {
+                _spriteBatch.Draw(_pixel, new Rectangle(outerLeft, y, outerRight - outerLeft + 1, 1), color);
+                continue;
+            }
+
+            float innerHalfWidth = innerRadiusX * MathF.Sqrt(MathF.Max(0f, 1f - innerNormalizedY * innerNormalizedY));
+            int innerLeft = (int)MathF.Ceiling(centerX - innerHalfWidth);
+            int innerRight = (int)MathF.Floor(centerX + innerHalfWidth);
+
+            if (innerLeft > outerLeft)
+            {
+                _spriteBatch.Draw(_pixel, new Rectangle(outerLeft, y, innerLeft - outerLeft, 1), color);
+            }
+
+            if (outerRight > innerRight)
+            {
+                _spriteBatch.Draw(_pixel, new Rectangle(innerRight + 1, y, outerRight - innerRight, 1), color);
+            }
+        }
     }
 
     // Draws a simple rectangle outline using the shared one-pixel texture.
@@ -1735,6 +1989,7 @@ public partial class Game1
             TileContent.Coin => 68f,
             TileContent.Meteor => 108f,
             TileContent.Boss => 240f,
+            TileContent.Obstacle => 108f,
             TileContent.ScoreBooster => 88f,
             TileContent.LifeItem => 84f,
             TileContent.StageItem => 84f,

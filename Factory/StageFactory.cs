@@ -104,40 +104,40 @@ public sealed class StageFactory
         {
             1 => roll switch
             {
-                < 0.38 => TileContent.Coin,
-                < 0.46 => TileContent.StageItem,
-                < 0.51 => TileContent.OutOfStageItem,
-                < 0.59 => TileContent.RopeItem,
-                < 0.67 => TileContent.ScoreBooster,
-                < 0.75 => TileContent.LifeItem,
-                < 0.86 => TileContent.Obstacle,
-                < 0.95 => TileContent.Projectile,
+                < 0.32 => TileContent.Coin,
+                < 0.39 => TileContent.StageItem,
+                < 0.43 => TileContent.OutOfStageItem,
+                < 0.50 => TileContent.RopeItem,
+                < 0.56 => TileContent.ScoreBooster,
+                < 0.62 => TileContent.LifeItem,
+                < 0.74 => TileContent.Obstacle,
+                < 0.90 => TileContent.Projectile,
                 _ => TileContent.Meteor
             },
             2 => roll switch
             {
-                < 0.30 => TileContent.Coin,
-                < 0.37 => TileContent.StageItem,
-                < 0.42 => TileContent.OutOfStageItem,
-                < 0.49 => TileContent.RopeItem,
-                < 0.56 => TileContent.ScoreBooster,
-                < 0.61 => TileContent.LifeItem,
-                < 0.74 => TileContent.Obstacle,
-                < 0.88 => TileContent.Projectile,
-                < 0.96 => TileContent.HomingProjectile,
+                < 0.25 => TileContent.Coin,
+                < 0.31 => TileContent.StageItem,
+                < 0.35 => TileContent.OutOfStageItem,
+                < 0.41 => TileContent.RopeItem,
+                < 0.47 => TileContent.ScoreBooster,
+                < 0.52 => TileContent.LifeItem,
+                < 0.66 => TileContent.Obstacle,
+                < 0.82 => TileContent.Projectile,
+                < 0.93 => TileContent.HomingProjectile,
                 _ => TileContent.Meteor
             },
             _ => roll switch
             {
-                < 0.26 => TileContent.Coin,
-                < 0.32 => TileContent.StageItem,
-                < 0.36 => TileContent.OutOfStageItem,
-                < 0.43 => TileContent.RopeItem,
-                < 0.50 => TileContent.ScoreBooster,
-                < 0.55 => TileContent.LifeItem,
-                < 0.76 => TileContent.Obstacle,
-                < 0.87 => TileContent.Projectile,
-                < 0.96 => TileContent.HomingProjectile,
+                < 0.20 => TileContent.Coin,
+                < 0.25 => TileContent.StageItem,
+                < 0.29 => TileContent.OutOfStageItem,
+                < 0.35 => TileContent.RopeItem,
+                < 0.41 => TileContent.ScoreBooster,
+                < 0.46 => TileContent.LifeItem,
+                < 0.63 => TileContent.Obstacle,
+                < 0.79 => TileContent.Projectile,
+                < 0.91 => TileContent.HomingProjectile,
                 _ => TileContent.Meteor
             }
         };
