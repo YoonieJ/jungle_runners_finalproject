@@ -1,6 +1,6 @@
 # Jungle Runners
 
-Jungle Runners is a MonoGame DesktopGL runner game built for the CS324E final project. The player logs in with a local user id, chooses one of three jungle stages, follows coin trails through scrolling lanes, collects rewards, avoids hazards, and survives the final boss encounter.
+Jungle Runners is a MonoGame DesktopGL staged-based runner game. The player logs in with a local user id, chooses one of three jungle stages, follows coin trails through scrolling lanes, collects rewards, avoids hazards, and survives the final boss encounter.
 
 The game mixes side-scrolling runner movement with a three-row depth system. In the front view, the runner moves between front, middle, and back rows while the stage scrolls horizontally. Holding the top-view key switches to an overhead grid view of the same stage data, making it easier to read lane placement, route markers, recommended coin paths, meteor targets, and upcoming hazards.
 
