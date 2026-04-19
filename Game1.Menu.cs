@@ -190,6 +190,16 @@ public partial class Game1
             _selectedStage = (_selectedStage + _stages.Length - 1) % _stages.Length;
         }
 
+        if (IsNewKeyPress(keyboard, Keys.Up))
+        {
+            CycleDifficulty(1);
+        }
+
+        if (IsNewKeyPress(keyboard, Keys.Down))
+        {
+            CycleDifficulty(-1);
+        }
+
         if (IsNewKeyPress(keyboard, Keys.Enter))
         {
             StartRun();
@@ -359,6 +369,7 @@ public partial class Game1
             PixelFont.Draw(_spriteBatch, _pixel, $"BEST {progress.BestScore}  STARS {progress.StarRating}", 100, 385, 3, Color.White);
         }
         PixelFont.Draw(_spriteBatch, _pixel, "LEFT/RIGHT CHOOSE  ENTER START  ESC MENU", 100, 610, 3, Color.White);
+        PixelFont.Draw(_spriteBatch, _pixel, $"UP/DOWN DIFFICULTY  {_selectedDifficulty.ToString().ToUpperInvariant()}", 100, 650, 3, Color.Gold);
     }
 
     // Draws controls, item rules, and survival tips from the main menu.
@@ -763,6 +774,25 @@ public partial class Game1
         }
 
         _menuMessage = _soundEnabled ? "Sound enabled." : "Sound muted.";
+    }
+
+    // Changes the selected difficulty and stores it on the current profile.
+    private void CycleDifficulty(int direction)
+    {
+        Difficulty[] difficulties = Enum.GetValues<Difficulty>();
+        int index = Array.IndexOf(difficulties, _selectedDifficulty);
+        if (index < 0)
+        {
+            index = Array.IndexOf(difficulties, Difficulty.Medium);
+        }
+
+        _selectedDifficulty = difficulties[(index + direction + difficulties.Length) % difficulties.Length];
+
+        if (_currentUser is not null)
+        {
+            _currentUser.Settings.Difficulty = _selectedDifficulty;
+            SaveSaveFile();
+        }
     }
 
     // Updates short-lived jump, slide, rope, score boost, and invulnerability timers.
