@@ -117,6 +117,9 @@ public partial class Game1 : Game
 
     private readonly AudioManager _audioManager = new();
 
+    private FrontViewRenderer _frontViewRenderer = null!;
+    private TopViewRenderer _topViewRenderer = null!;
+
     // Configures the game window, content root, and base MonoGame settings.
     public Game1()
     {
@@ -175,6 +178,27 @@ public partial class Game1 : Game
 
         _audioManager.LoadContent(Content);
         _audioManager.PlaySongForLevel(0);
+
+        _frontViewRenderer = new FrontViewRenderer(
+            _rowDepthMapper,
+            _pixel,
+            _coinTexture,
+            _extraLifeTexture,
+            _shieldTexture,
+            _mysteryBoxTexture,
+            _obstacleTexture,
+            _stageArrowTexture,
+            _bossArrowTexture);
+
+        _topViewRenderer = new TopViewRenderer(
+            _pixel,
+            _coinTexture,
+            _extraLifeTexture,
+            _shieldTexture,
+            _mysteryBoxTexture,
+            _obstacleTexture,
+            _stageArrowTexture,
+            _bossArrowTexture);
     }
 
     // Routes per-frame input and simulation work to the active prototype screen.
