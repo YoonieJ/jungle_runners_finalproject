@@ -26,6 +26,8 @@ public partial class Game1
     private const float MapProjectileStandardSpeed = 520f;
     private const float MapProjectileHomingSpeed = 430f;
     private const float MapProjectileHomingInterval = 0.42f;
+    private const float MeteorFrontRevealDistance = 270f;
+    private const float MeteorJumpClearHeight = 120f;
 
     private readonly List<BossAttack> _bossAttacks = [];
     private readonly List<MapProjectile> _mapProjectiles = [];
@@ -393,7 +395,7 @@ public partial class Game1
         PixelFont.Draw(_spriteBatch, _pixel, "ROPE ITEM LETS YOU USE R ONCE", 640, 365, 3, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, "ROPE IS USED UP AFTER ACTIVATING", 640, 405, 3, Color.White);
 
-        PixelFont.Draw(_spriteBatch, _pixel, "WATCH FOR MULTI ROW OBSTACLES", 100, 500, 3, Color.Orange);
+        PixelFont.Draw(_spriteBatch, _pixel, "WATCH FOR METEOR TARGETS IN TOP VIEW", 100, 500, 3, Color.Orange);
         PixelFont.Draw(_spriteBatch, _pixel, "STAGE 3 HAS A BOSS: SLIDE SPEARS AND JUMP BOULDERS", 100, 545, 3, Color.White);
         PixelFont.Draw(_spriteBatch, _pixel, "ENTER OR ESC BACK", 100, 630, 3, Color.Gold);
     }
@@ -460,7 +462,7 @@ public partial class Game1
         }
     }
 
-    // Draws the stage 3 boss arrival overlay, boss placeholder image, and attacks.
+    // Draws the stage 3 boss arrival overlay, boss image, and attacks.
     private void DrawBossEncounter()
     {
         if (!IsBossEncounterActive())
@@ -471,7 +473,7 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, WindowWidth, WindowHeight), Color.Black * 0.45f);
 
         Rectangle bossImage = new(WindowWidth - 380, 120, 250, 270);
-        _spriteBatch.Draw(_pixel, bossImage, Color.Purple);
+        DrawTextureInBounds(_bossBodyTexture, bossImage, Color.White);
 
         if (_bossIntroActive)
         {
@@ -485,7 +487,7 @@ public partial class Game1
         {
             Vector2 size = GetBossAttackSize(attack);
             Rectangle attackBounds = new((int)attack.Position.X, (int)attack.Position.Y, (int)size.X, (int)size.Y);
-            Texture2D attackTexture = attack.Kind == BossAttackKind.Spear ? _bossArrowTexture : _obstacleTexture;
+            Texture2D attackTexture = attack.Kind == BossAttackKind.Spear ? _bossArrowTexture : _bossBoulderTexture;
             DrawTextureInBounds(attackTexture, attackBounds, Color.White);
         }
 
@@ -1195,6 +1197,13 @@ public partial class Game1
                     }
                     tile.Content = TileContent.Empty;
                     break;
+                case TileContent.Meteor:
+                    if (_playerJumpOffset < MeteorJumpClearHeight)
+                    {
+                        DamagePlayer();
+                    }
+                    tile.Content = TileContent.Empty;
+                    break;
                 case TileContent.Boss:
                     StartBossEncounter();
                     break;
@@ -1270,6 +1279,13 @@ public partial class Game1
         float scale = _rowDepthMapper.GetScale(tile.Row);
         float groundY = _rowDepthMapper.GetGroundY(tile.Row);
         Color color = GetTileColor(tile);
+
+        if (tile.Content == TileContent.Meteor)
+        {
+            DrawMeteorFrontTile(tile, x, scale, groundY);
+            return;
+        }
+
         int width = (int)(TileVisualWidth(tile) * scale);
         int height = (int)(TileVisualHeight(tile) * scale);
         int y = (int)(groundY - height);
@@ -1321,14 +1337,21 @@ public partial class Game1
                 if (tile.HasContent)
                 {
                     Rectangle contentDestination = new(x + contentInset, y + contentInset, contentSize, contentSize);
-                    Texture2D? texture = GetTileContentTexture(tile.Content);
-                    if (texture is not null)
+                    if (tile.Content == TileContent.Meteor)
                     {
-                        DrawTextureInBounds(texture, contentDestination, Color.White);
+                        DrawMeteorTarget(contentDestination);
                     }
                     else
                     {
-                        _spriteBatch.Draw(_pixel, contentDestination, GetTileColor(tile));
+                        Texture2D? texture = GetTileContentTexture(tile.Content);
+                        if (texture is not null)
+                        {
+                            DrawTextureInBounds(texture, contentDestination, Color.White);
+                        }
+                        else
+                        {
+                            _spriteBatch.Draw(_pixel, contentDestination, GetTileColor(tile));
+                        }
                     }
                 }
             }
@@ -1403,16 +1426,65 @@ public partial class Game1
         {
             TileContent.Coin => _coinTexture,
             TileContent.LifeItem => _extraLifeTexture,
-            TileContent.ScoreBooster => _mysteryBoxTexture,
+            TileContent.ScoreBooster => _scoreBoosterTexture,
             TileContent.StageItem => _shieldTexture,
             TileContent.RopeItem => _mysteryBoxTexture,
             TileContent.OutOfStageItem => _mysteryBoxTexture,
             TileContent.Collectible or TileContent.Item => _mysteryBoxTexture,
             TileContent.Projectile => _stageArrowTexture,
             TileContent.HomingProjectile => _bossArrowTexture,
+            TileContent.Meteor => _meteorTexture,
             TileContent.Obstacle => _obstacleTexture,
             _ => null
         };
+    }
+
+    // Draws a late side-view meteor tell so top-view scouting matters.
+    private void DrawMeteorFrontTile(Tile tile, float x, float scale, float groundY)
+    {
+        float distanceToRunner = x - RunnerX;
+        if (distanceToRunner > MeteorFrontRevealDistance)
+        {
+            return;
+        }
+
+        float revealProgress = MathHelper.Clamp(1f - MathF.Max(0f, distanceToRunner) / MeteorFrontRevealDistance, 0f, 1f);
+        int targetWidth = (int)(TileVisualWidth(tile) * scale);
+        int targetHeight = Math.Max(8, (int)(18f * scale));
+        Rectangle target = new((int)x, (int)(groundY - targetHeight), targetWidth, targetHeight);
+        Color targetColor = Color.Lerp(Color.OrangeRed, Color.Yellow, revealProgress) * 0.68f;
+        _spriteBatch.Draw(_pixel, target, targetColor);
+        DrawRectangleOutline(target, Math.Max(2, (int)(3f * scale)), Color.Red * 0.82f);
+
+        int meteorSize = Math.Max(24, (int)(78f * scale));
+        float startY = groundY - 250f * scale;
+        float impactY = groundY - meteorSize;
+        int meteorX = target.X + (target.Width - meteorSize) / 2;
+        int meteorY = (int)MathHelper.Lerp(startY, impactY, revealProgress);
+        Rectangle meteorBounds = new(meteorX, meteorY, meteorSize, meteorSize);
+        Rectangle trail = new(
+            meteorBounds.X + meteorBounds.Width / 3,
+            meteorBounds.Y - Math.Max(8, (int)(36f * scale)),
+            Math.Max(8, meteorBounds.Width / 3),
+            Math.Max(12, (int)(44f * scale)));
+
+        _spriteBatch.Draw(_pixel, trail, Color.OrangeRed * 0.45f);
+        DrawTextureInBounds(_meteorTexture, meteorBounds, Color.White);
+    }
+
+    // Marks meteor impact tiles clearly in top view before the meteor is visible in side view.
+    private void DrawMeteorTarget(Rectangle bounds)
+    {
+        _spriteBatch.Draw(_pixel, bounds, Color.OrangeRed * 0.18f);
+        DrawRectangleOutline(bounds, 3, Color.OrangeRed);
+
+        int centerX = bounds.X + bounds.Width / 2;
+        int centerY = bounds.Y + bounds.Height / 2;
+        _spriteBatch.Draw(_pixel, new Rectangle(centerX - 2, bounds.Y + 6, 4, bounds.Height - 12), Color.Gold);
+        _spriteBatch.Draw(_pixel, new Rectangle(bounds.X + 6, centerY - 2, bounds.Width - 12, 4), Color.Gold);
+
+        Rectangle inner = new(bounds.X + bounds.Width / 4, bounds.Y + bounds.Height / 4, bounds.Width / 2, bounds.Height / 2);
+        DrawRectangleOutline(inner, 2, Color.Red);
     }
 
     // Draws an asset centered inside a gameplay rectangle without squashing its pixels.
@@ -1430,6 +1502,15 @@ public partial class Game1
         _spriteBatch.Draw(texture, destination, color);
     }
 
+    // Draws a simple rectangle outline using the shared one-pixel texture.
+    private void DrawRectangleOutline(Rectangle bounds, int thickness, Color color)
+    {
+        _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Y, bounds.Width, thickness), color);
+        _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Bottom - thickness, bounds.Width, thickness), color);
+        _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Y, thickness, bounds.Height), color);
+        _spriteBatch.Draw(_pixel, new Rectangle(bounds.Right - thickness, bounds.Y, thickness, bounds.Height), color);
+    }
+
     // Chooses the placeholder draw color for a tile based on content first, then tile type.
     private Color GetTileColor(Tile tile)
     {
@@ -1443,6 +1524,7 @@ public partial class Game1
             TileContent.OutOfStageItem => Color.LightGreen,
             TileContent.Projectile => Color.OrangeRed,
             TileContent.HomingProjectile => Color.Magenta,
+            TileContent.Meteor => Color.Red,
             TileContent.Obstacle => Color.DarkRed,
             TileContent.Boss => Color.Purple,
             TileContent.Collectible or TileContent.Item => Color.LightGreen,
@@ -1460,6 +1542,7 @@ public partial class Game1
             TileContent.Projectile => 144f,
             TileContent.HomingProjectile => 88f,
             TileContent.Coin => 68f,
+            TileContent.Meteor => 108f,
             TileContent.Boss => 236f,
             _ => 124f
         };
@@ -1473,6 +1556,7 @@ public partial class Game1
             TileContent.Projectile => 36f,
             TileContent.HomingProjectile => 88f,
             TileContent.Coin => 68f,
+            TileContent.Meteor => 108f,
             TileContent.Boss => 240f,
             TileContent.ScoreBooster => 88f,
             TileContent.LifeItem => 84f,

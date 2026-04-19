@@ -40,8 +40,12 @@ public partial class Game1 : Game
     private Texture2D _shieldTexture = null!;
     private Texture2D _mysteryBoxTexture = null!;
     private Texture2D _obstacleTexture = null!;
+    private Texture2D _scoreBoosterTexture = null!;
+    private Texture2D _meteorTexture = null!;
     private Texture2D _stageArrowTexture = null!;
     private Texture2D _bossArrowTexture = null!;
+    private Texture2D _bossBodyTexture = null!;
+    private Texture2D _bossBoulderTexture = null!;
     private Texture2D[] _playerRunFrames = [];
     private SpriteFont _minecraftFont = null!;
     private KeyboardState _previousKeyboard;
@@ -151,8 +155,12 @@ public partial class Game1 : Game
         _shieldTexture = Content.Load<Texture2D>("stage_shield");
         _mysteryBoxTexture = Content.Load<Texture2D>("stage_mystery_box");
         _obstacleTexture = Content.Load<Texture2D>("stage_obstacle");
+        _scoreBoosterTexture = Content.Load<Texture2D>("stage_score_booster");
+        _meteorTexture = Content.Load<Texture2D>("stage_meteor");
         _stageArrowTexture = Content.Load<Texture2D>("stage_arrow");
         _bossArrowTexture = Content.Load<Texture2D>("boss_arrow");
+        _bossBodyTexture = Content.Load<Texture2D>("boss_body");
+        _bossBoulderTexture = Content.Load<Texture2D>("boss_boulder");
         _playerRunFrames =
         [
             Content.Load<Texture2D>("player_1"),

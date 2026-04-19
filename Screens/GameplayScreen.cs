@@ -334,6 +334,13 @@ public sealed class GameplayScreen : IScreen
                     }
                     tile.Content = TileContent.Empty;
                     break;
+                case TileContent.Meteor:
+                    if (JumpOffset < 120f)
+                    {
+                        DamagePlayer();
+                    }
+                    tile.Content = TileContent.Empty;
+                    break;
                 case TileContent.Obstacle:
                 case TileContent.Boss:
                     if (JumpOffset < 56f)

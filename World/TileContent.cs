@@ -14,6 +14,7 @@ public enum TileContent
     Obstacle,
     Projectile,
     HomingProjectile,
+    Meteor,
     Boss,
     RopeItem
 }

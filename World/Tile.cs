@@ -18,7 +18,7 @@ public sealed class Tile
     public TileContent Content { get; set; } = TileContent.Empty;
     public int RowLayer => Row;
     public bool HasContent => Content != TileContent.Empty;
-    public bool IsBlocked => Type is TileType.Pit or TileType.Hazard || Content is TileContent.Obstacle or TileContent.Boss;
+    public bool IsBlocked => Type is TileType.Pit or TileType.Hazard || Content is TileContent.Obstacle or TileContent.Meteor or TileContent.Boss;
     public bool IsCollectible => Content is TileContent.Coin or TileContent.Collectible or TileContent.Item or TileContent.OutOfStageItem or TileContent.StageItem or TileContent.RopeItem or TileContent.LifeItem or TileContent.ScoreBooster;
 
     public Rectangle Bounds => new(

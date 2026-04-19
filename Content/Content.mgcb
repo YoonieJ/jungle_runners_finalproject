@@ -25,6 +25,30 @@
 /processorParam:TextureFormat=Color
 /build:boss_arrow.png
 
+#begin boss_body.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:boss_body.png
+
+#begin boss_boulder.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:boss_boulder.png
+
 #begin Fonts/Mario Kart.spritefont
 /importer:FontDescriptionImporter
 /processor:FontDescriptionProcessor
@@ -208,6 +232,18 @@
 /processorParam:TextureFormat=Color
 /build:stage_extra_life.png
 
+#begin stage_meteor.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:stage_meteor.png
+
 #begin stage_mystery_box.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -231,6 +267,18 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:stage_obstacle.png
+
+#begin stage_score_booster.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:stage_score_booster.png
 
 #begin stage_shield.png
 /importer:TextureImporter
@@ -261,3 +309,4 @@
 /processor:SongProcessor
 /processorParam:Quality=Best
 /build:williamhector-cinematic-action-jungle-drums-loop-125bpm-345139.mp3
+

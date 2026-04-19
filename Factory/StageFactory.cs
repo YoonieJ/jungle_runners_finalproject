@@ -40,7 +40,7 @@ public sealed class StageFactory
                 continue;
             }
 
-            if (tile.Content is TileContent.Obstacle or TileContent.Projectile or TileContent.HomingProjectile)
+            if (tile.Content is TileContent.Obstacle or TileContent.Projectile or TileContent.HomingProjectile or TileContent.Meteor)
             {
                 tile.Type = TileType.Hazard;
             }
@@ -107,7 +107,8 @@ public sealed class StageFactory
                 < 0.67 => TileContent.ScoreBooster,
                 < 0.75 => TileContent.LifeItem,
                 < 0.86 => TileContent.Obstacle,
-                _ => TileContent.Projectile
+                < 0.95 => TileContent.Projectile,
+                _ => TileContent.Meteor
             },
             2 => roll switch
             {
@@ -118,8 +119,9 @@ public sealed class StageFactory
                 < 0.56 => TileContent.ScoreBooster,
                 < 0.61 => TileContent.LifeItem,
                 < 0.74 => TileContent.Obstacle,
-                < 0.93 => TileContent.Projectile,
-                _ => TileContent.HomingProjectile
+                < 0.88 => TileContent.Projectile,
+                < 0.96 => TileContent.HomingProjectile,
+                _ => TileContent.Meteor
             },
             _ => roll switch
             {
@@ -130,8 +132,9 @@ public sealed class StageFactory
                 < 0.50 => TileContent.ScoreBooster,
                 < 0.55 => TileContent.LifeItem,
                 < 0.76 => TileContent.Obstacle,
-                < 0.90 => TileContent.Projectile,
-                _ => TileContent.HomingProjectile
+                < 0.87 => TileContent.Projectile,
+                < 0.96 => TileContent.HomingProjectile,
+                _ => TileContent.Meteor
             }
         };
     }

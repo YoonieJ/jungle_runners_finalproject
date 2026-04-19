@@ -16,7 +16,7 @@ The game mixes side-scrolling runner movement with a three-row depth system. In 
 - Three-row runner movement with row depth, scaling, and lane layering.
 - Jump, double jump, slide, rope boost, shield protection, and temporary invulnerability after damage.
 - Pickups including coins, extra lives, shields, score boosters, rope items, and collectible out-of-stage item placeholders.
-- Hazards including obstacles, straight projectiles, homing projectiles, multi-row obstacle clusters, and stage 3 boss attacks.
+- Hazards including obstacles, meteors with top-view target warnings, straight projectiles, homing projectiles, multi-row obstacle clusters, and stage 3 boss attacks.
 - Branching route graph that pauses at route choices and lets the player pick a path.
 - Front-view gameplay and hold-to-preview top-view gameplay using the same generated stage grid.
 - Score calculation from distance, coins, boosters, and the stage 3 boss survival bonus.
