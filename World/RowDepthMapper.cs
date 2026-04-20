@@ -4,6 +4,7 @@ namespace jungle_runners_finalproject;
 
 public sealed class RowDepthMapper
 {
+    // Ground lines are tuned for the front-view lane bands; sprites plant their feet on these y values.
     public int MinRow { get; set; }
     public int MaxRow { get; set; } = Constants.GameplayRows - 1;
     public float ClosestGroundY { get; set; } = 642f;

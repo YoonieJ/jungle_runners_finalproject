@@ -19,12 +19,12 @@ public sealed class StageFactory
         return stage;
     }
 
-    // Generates the prototype stage grid with deterministic pickups, hazards, branch markers, and coin guides.
+    // Generates the deterministic stage grid with pickups, heavier hazard rolls, route markers, and coin guides.
     private static GridWorld GenerateWorld(StageDefinition definition, Difficulty difficulty)
     {
         // TODO: Replace deterministic scatter with authored/data-driven layouts for more stages.
         // TODO: Add stage dialogue triggers and richer route metadata for RPG-style progression.
-        // TODO: Tune hazard/reward density by Difficulty after authored layouts are in place.
+        // TODO: Playtest hazard/reward density by difficulty once authored layouts are in place.
         int columns = Constants.DefaultStageColumns + definition.Number * 8;
         GridWorld world = new(Constants.GameplayRows, columns);
         Random random = new(definition.Number * 997);
@@ -87,12 +87,12 @@ public sealed class StageFactory
         return (previousRow + rowOffset) % rowCount;
     }
 
-    // Chooses pickups and hazards using stage-specific pressure curves.
+    // Chooses pickups and hazards using stage-specific pressure curves biased toward arrows and meteors.
     private static TileContent RollStageContent(Random random, int stageNumber, Difficulty difficulty)
     {
         double roll = random.NextDouble();
 
-        // Adjust roll for difficulty: easy favors rewards, hard favors hazards
+        // Adjust roll for difficulty: easy favors rewards, hard favors hazards.
         roll = difficulty switch
         {
             Difficulty.Easy => roll * 0.85, // Lower roll, more rewards

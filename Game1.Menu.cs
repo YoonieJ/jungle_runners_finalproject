@@ -22,9 +22,9 @@ public partial class Game1
     private const float BossAttackMaxInterval = 1.05f;
     private const string BossName = "THE SUNKEN IDOL";
     private const float MapProjectileActivationPadding = 220f;
-    private const float MapProjectileStandardSpeed = 520f;
-    private const float MapProjectileHomingSpeed = 430f;
-    private const float MapProjectileHomingInterval = 0.42f;
+    private const float MapProjectileStandardSpeed = 450f;
+    private const float MapProjectileHomingSpeed = 340f;
+    private const float MapProjectileHomingInterval = 0.50f;
     private const float MeteorFrontRevealDistance = 340f;
     private const float MeteorDiagonalStartOffsetX = 190f;
     private const float MeteorDiagonalStartOffsetY = 280f;
@@ -45,6 +45,14 @@ public partial class Game1
     private float _bossFightTimer;
     private float _bossAttackTimer;
     private int _bossSurvivalBonus;
+    private Boss? _boss;
+    private readonly List<BossWeakPoint> _bossWeakPoints = [];
+    private float _weakPointTimer;
+    private const float WeakPointMinInterval = 3.5f;
+    private const float WeakPointMaxInterval = 6.0f;
+    private const float WeakPointLifetime = 4.0f;
+    private const float WeakPointSpeed = 380f;
+    private const int WeakPointDamage = 3;
 
     // Loads local save data and guarantees the user dictionary is ready to use.
     private void LoadSaveFile()
@@ -279,6 +287,7 @@ public partial class Game1
         _distance = _worldScroller.OffsetX;
         _distanceScore += System.Math.Max(0f, _distance - previousDistance) * GetScoreMultiplier();
         _segmentProgress += _worldScroller.Speed * deltaSeconds;
+        TryStartBossEncounterFromGrid();
         UpdateBossEncounter(deltaSeconds);
         if (_screen != GameScreen.Playing)
         {
@@ -406,12 +415,11 @@ public partial class Game1
         PixelFont.Draw(_spriteBatch, _pixel, "ENTER OR ESC BACK", 100, 630, 3, Color.Gold);
     }
 
-    // Draws the side-view prototype using lane bands, sprites, active hazards, and the runner.
+    // Draws the side-view run by walking rows from back to front so closer lanes layer on top.
     private void DrawFrontView()
     {
         // TODO: Move this rendering into FrontViewRenderer and pass assets through AssetManager.
         // TODO: Add barricade sprites, rope feedback, jump/slide sprites, and more run frames.
-        // TODO: Tune lane grounding so player, obstacles, and projectiles sit on the lane surface.
         DrawGameplayBackground();
         DrawFrontLanes();
 
@@ -483,7 +491,7 @@ public partial class Game1
         }
     }
 
-    // Draws the stage 3 boss arrival overlay, boss image, and attacks.
+    // Draws the stage 3 boss overlay, then redraws the runner so the overlay does not dim the player.
     private void DrawBossEncounter()
     {
         if (!IsBossEncounterActive())
@@ -493,7 +501,7 @@ public partial class Game1
 
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, WindowWidth, WindowHeight), Color.Black * 0.45f);
 
-        Rectangle bossImage = new(WindowWidth - 450, 220, 360, 390);
+        Rectangle bossImage = _boss?.Bounds ?? new Rectangle(WindowWidth - 450, 220, 360, 390);
         DrawTextureInBounds(_bossBodyTexture, bossImage, Color.White);
         if (_viewMode == ViewMode.Front)
         {
@@ -514,9 +522,18 @@ public partial class Game1
             DrawTextureInBounds(attackTexture, GetBossAttackBounds(attack), Color.White);
         }
 
-        PixelFont.Draw(_spriteBatch, _pixel, $"{BossName} {MathF.Ceiling(_bossFightTimer)}", 220, 120, 4, Color.Gold);
+        foreach (BossWeakPoint weakPoint in _bossWeakPoints)
+        {
+            DrawTextureInBounds(_coinTexture, GetWeakPointBounds(weakPoint), Color.White);
+        }
+
+        string bossStatus = _boss is null
+            ? $"{BossName} {MathF.Ceiling(_bossFightTimer)}"
+            : $"{BossName} HP {_boss.Health.CurrentHealth}/{_boss.Health.MaxHealth}  {MathF.Ceiling(_bossFightTimer)}";
+        PixelFont.Draw(_spriteBatch, _pixel, bossStatus, 220, 120, 4, Color.Gold);
         PixelFont.Draw(_spriteBatch, _pixel, "SLIDE SPEARS  JUMP BOULDERS", 220, 180, 3, Color.White);
-        PixelFont.Draw(_spriteBatch, _pixel, "ROPE DISABLED", 220, 220, 3, Color.OrangeRed);
+        PixelFont.Draw(_spriteBatch, _pixel, "GRAB GOLD WEAK POINTS", 220, 220, 3, Color.White);
+        PixelFont.Draw(_spriteBatch, _pixel, "ROPE DISABLED", 220, 260, 3, Color.OrangeRed);
     }
 
     // Draws the stage-clear or game-over result screen.
@@ -886,6 +903,7 @@ public partial class Game1
     private void ResetBossEncounter()
     {
         _bossAttacks.Clear();
+        _bossWeakPoints.Clear();
         _bossEncounterStarted = false;
         _bossIntroActive = false;
         _bossFightActive = false;
@@ -893,7 +911,9 @@ public partial class Game1
         _bossIntroTimer = 0f;
         _bossFightTimer = 0f;
         _bossAttackTimer = 0f;
+        _weakPointTimer = 0f;
         _bossSurvivalBonus = 0;
+        _boss = null;
     }
 
     // Starts the stage 3 boss arrival screen when the runner enters the boss tile area.
@@ -909,12 +929,40 @@ public partial class Game1
         _bossIntroActive = true;
         _bossIntroTimer = BossIntroDuration;
         _bossAttacks.Clear();
+        _bossWeakPoints.Clear();
+        _mapProjectiles.Clear();
         _ropeTimer = 0f;
         _scoreBoostTimer = 0f;
+        _boss = new Boss
+        {
+            Position = new Vector2(WindowWidth - 450, 220f),
+            Size = new Vector2(360f, 390f),
+            IsActive = true
+        };
 
         foreach (Tile tile in _activeStageData.World.AllTiles.Where(tile => tile.Content == TileContent.Boss))
         {
             tile.Content = TileContent.Empty;
+        }
+    }
+
+    // Starts the boss as soon as the runner reaches boss tiles, before normal stage hazards resolve.
+    private void TryStartBossEncounterFromGrid()
+    {
+        if (_bossEncounterStarted || _activeStage.Number != BossStageNumber)
+        {
+            return;
+        }
+
+        Rectangle playerBounds = GetPlayerCollisionBounds();
+        foreach (Tile tile in _activeStageData.World.AllTiles.Where(tile => tile.Content == TileContent.Boss && tile.Row == _playerRow))
+        {
+            float x = GetTileScreenX(tile.Column);
+            if (playerBounds.Intersects(GetFrontTileCollisionBounds(tile, x)))
+            {
+                StartBossEncounter();
+                return;
+            }
         }
     }
 
@@ -938,6 +986,7 @@ public partial class Game1
 
         _bossFightTimer -= deltaSeconds;
         _bossAttackTimer -= deltaSeconds;
+        _weakPointTimer -= deltaSeconds;
 
         if (_bossAttackTimer <= 0f)
         {
@@ -945,9 +994,22 @@ public partial class Game1
             _bossAttackTimer = BossAttackMinInterval + (float)_runRandom.NextDouble() * (BossAttackMaxInterval - BossAttackMinInterval);
         }
 
+        if (_weakPointTimer <= 0f)
+        {
+            SpawnWeakPoint();
+            _weakPointTimer = WeakPointMinInterval + (float)_runRandom.NextDouble() * (WeakPointMaxInterval - WeakPointMinInterval);
+        }
+
         UpdateBossAttacks(deltaSeconds);
+        UpdateWeakPoints(deltaSeconds);
         if (_screen != GameScreen.Playing)
         {
+            return;
+        }
+
+        if (_boss is not null && (!_boss.IsActive || _boss.Health.IsDead))
+        {
+            CompleteBossFight();
             return;
         }
 
@@ -964,6 +1026,7 @@ public partial class Game1
         _bossFightActive = true;
         _bossFightTimer = BossFightDuration;
         _bossAttackTimer = BossAttackInitialDelay;
+        _weakPointTimer = WeakPointMinInterval;
     }
 
     // Marks the boss as beaten and clears stage 3 immediately.
@@ -973,6 +1036,11 @@ public partial class Game1
         _bossDefeated = true;
         _bossSurvivalBonus = BossSurvivalScoreBonus;
         _bossAttacks.Clear();
+        _bossWeakPoints.Clear();
+        if (_boss is not null)
+        {
+            _boss.IsActive = false;
+        }
         _score = CalculateRunScore();
         _runWon = true;
         _gameOverTitle = "Stage Clear";
@@ -988,13 +1056,34 @@ public partial class Game1
         int row = _runRandom.Next(Constants.FrontLayer, Constants.BackLayer + 1);
         float scale = _rowDepthMapper.GetScale(row);
         float groundY = _rowDepthMapper.GetGroundY(row);
-        float y = kind == BossAttackKind.Spear ? groundY - 136f * scale : groundY - 72f * scale;
+        float y = kind == BossAttackKind.Spear ? groundY - 118f * scale : groundY - 72f * scale;
         float speed = kind == BossAttackKind.Spear ? 620f : 470f;
 
         _bossAttacks.Add(new BossAttack(kind, row, new Vector2(WindowWidth - 330f, y), speed));
     }
 
-    // Moves boss attacks and applies damage if the player misses the correct dodge.
+    // Creates a collectible weak point that lets the runner damage the boss directly.
+    private void SpawnWeakPoint()
+    {
+        if (_boss is null || !_boss.IsActive || _boss.Health.IsDead)
+        {
+            return;
+        }
+
+        int row = _runRandom.Next(Constants.FrontLayer, Constants.BackLayer + 1);
+        float scale = _rowDepthMapper.GetScale(row);
+        float groundY = _rowDepthMapper.GetGroundY(row);
+        Vector2 size = GetWeakPointSize(row);
+        float y = groundY - 92f * scale;
+
+        BossWeakPoint weakPoint = new(row, new Vector2(WindowWidth - 330f, y), WeakPointSpeed, WeakPointLifetime)
+        {
+            Size = size
+        };
+        _bossWeakPoints.Add(weakPoint);
+    }
+
+    // Moves boss attacks and applies damage when their visual bounds overlap the runner hitbox.
     private void UpdateBossAttacks(float deltaSeconds)
     {
         for (int i = _bossAttacks.Count - 1; i >= 0; i--)
@@ -1025,6 +1114,37 @@ public partial class Game1
         }
     }
 
+    // Moves weak points across the lane and damages the boss when the runner collects one.
+    private void UpdateWeakPoints(float deltaSeconds)
+    {
+        if (_boss is null)
+        {
+            _bossWeakPoints.Clear();
+            return;
+        }
+
+        Rectangle playerBounds = GetPlayerPickupBounds();
+        for (int i = _bossWeakPoints.Count - 1; i >= 0; i--)
+        {
+            BossWeakPoint weakPoint = _bossWeakPoints[i];
+            weakPoint.Position = new Vector2(weakPoint.Position.X - weakPoint.Speed * deltaSeconds, weakPoint.Position.Y);
+            weakPoint.Lifetime -= deltaSeconds;
+
+            Rectangle weakPointBounds = GetWeakPointBounds(weakPoint);
+            if (weakPoint.Row == _playerRow && playerBounds.Intersects(weakPointBounds))
+            {
+                _boss.Health.Damage(WeakPointDamage);
+                _bossWeakPoints.RemoveAt(i);
+                continue;
+            }
+
+            if (weakPoint.Lifetime <= 0f || weakPointBounds.Right < -40)
+            {
+                _bossWeakPoints.RemoveAt(i);
+            }
+        }
+    }
+
     // Returns screen-space attack dimensions with lane-depth scaling.
     private Vector2 GetBossAttackSize(BossAttack attack)
     {
@@ -1039,6 +1159,23 @@ public partial class Game1
     {
         Vector2 size = GetBossAttackSize(attack);
         return new Rectangle((int)attack.Position.X, (int)attack.Position.Y, (int)size.X, (int)size.Y);
+    }
+
+    // Returns screen-space weak point dimensions with lane-depth scaling.
+    private Vector2 GetWeakPointSize(int row)
+    {
+        float scale = _rowDepthMapper.GetScale(row);
+        return new Vector2(52f * scale, 52f * scale);
+    }
+
+    // Returns the visual and pickup bounds for an active boss weak point.
+    private static Rectangle GetWeakPointBounds(BossWeakPoint weakPoint)
+    {
+        return new Rectangle(
+            (int)weakPoint.Position.X,
+            (int)weakPoint.Position.Y,
+            (int)weakPoint.Size.X,
+            (int)weakPoint.Size.Y);
     }
 
     // Clears normal map projectile state between stage attempts.
@@ -1081,7 +1218,7 @@ public partial class Game1
         }
     }
 
-    // Moves active map projectiles toward the runner, including homing lane changes.
+    // Moves active map projectiles, updates homing rows, and checks visual-bounds collisions.
     private void UpdateMapProjectiles(float deltaSeconds)
     {
         if (IsBossEncounterActive())
@@ -1111,7 +1248,8 @@ public partial class Game1
             Rectangle playerBounds = GetPlayerCollisionBounds();
             if (!projectile.HasCheckedCollision && projectile.Row == _playerRow && playerBounds.Intersects(projectileBounds))
             {
-                bool avoided = projectile.Kind == TileContent.Projectile ? _slideTimer > 0f : _playerJumpOffset >= 56f;
+                bool avoided = IsBackRowArrow(projectile.Kind, projectile.Row)
+                    || (projectile.Kind == TileContent.Projectile ? _slideTimer > 0f : _playerJumpOffset >= 56f);
                 if (!avoided)
                 {
                     DamagePlayer();
@@ -1173,12 +1311,12 @@ public partial class Game1
         }
     }
 
-    // Returns the front-view y position for a flying projectile in its current row.
+    // Returns the front-view y position: arrows fly just high enough to slide under, homing rocks stay grounded.
     private float GetMapProjectileY(int row, TileContent kind)
     {
         float scale = _rowDepthMapper.GetScale(row);
         float groundY = _rowDepthMapper.GetGroundY(row);
-        return kind == TileContent.HomingProjectile ? groundY - 74f * scale : groundY - 136f * scale;
+        return kind == TileContent.HomingProjectile ? groundY - 74f * scale : groundY - 118f * scale;
     }
 
     // Returns screen-space projectile size with row depth applied.
@@ -1203,9 +1341,20 @@ public partial class Game1
         return projectile.Kind == TileContent.HomingProjectile ? Color.Magenta : Color.OrangeRed;
     }
 
-    // Checks the runner against nearby tile content and applies pickups or damage.
+    // Back-row arrows are warning pressure only; perspective makes their collisions hard to read.
+    private static bool IsBackRowArrow(TileContent content, int row)
+    {
+        return row == Constants.BackLayer && content is TileContent.Projectile or TileContent.HomingProjectile;
+    }
+
+    // Checks pickup and hazard bounds against the runner instead of using loose x-distance checks.
     private void ResolveGridInteractions()
     {
+        if (IsBossEncounterActive())
+        {
+            return;
+        }
+
         Rectangle playerHitBounds = GetPlayerCollisionBounds();
         Rectangle playerPickupBounds = GetPlayerPickupBounds();
 
@@ -1259,7 +1408,7 @@ public partial class Game1
                     break;
                 case TileContent.Projectile:
                 case TileContent.HomingProjectile:
-                    if (_slideTimer <= 0f)
+                    if (_slideTimer <= 0f && !IsBackRowArrow(tile.Content, tile.Row))
                     {
                         DamagePlayer();
                     }
@@ -1274,7 +1423,7 @@ public partial class Game1
                     break;
                 case TileContent.Boss:
                     StartBossEncounter();
-                    break;
+                    return;
                 case TileContent.Obstacle:
                     DamagePlayer();
                     tile.Content = TileContent.Empty;
@@ -1334,7 +1483,7 @@ public partial class Game1
         }
     }
 
-    // Draws depth-sorted lane bands for the front-view prototype.
+    // Draws lane bands around each row's ground line so characters and hazards feel planted.
     private void DrawFrontLanes()
     {
         for (int row = Constants.BackLayer; row >= Constants.FrontLayer; row--)
@@ -1354,7 +1503,7 @@ public partial class Game1
         }
     }
 
-    // Draws one visible tile or tile content marker in the front-view lane space.
+    // Draws visible tile content in front-view lane space; route-only markers stay in top view.
     private void DrawFrontTile(Tile tile, float x)
     {
         float scale = _rowDepthMapper.GetScale(tile.Row);
@@ -1438,9 +1587,21 @@ public partial class Game1
             TileContent.Projectile or TileContent.HomingProjectile
                 => bounds.InflateBy(-Math.Max(2, bounds.Height / 8)),
             TileContent.Obstacle
-                => bounds.InflateBy(-Math.Max(2, bounds.Width / 12)),
+                => GetObstacleCollisionBounds(bounds),
             _ => bounds
         };
+    }
+
+    // Uses the lower part of obstacles for damage so jumps clear them a little sooner.
+    private static Rectangle GetObstacleCollisionBounds(Rectangle bounds)
+    {
+        int insetX = Math.Max(2, bounds.Width / 12);
+        int topInset = Math.Max(10, bounds.Height / 3);
+        return new Rectangle(
+            bounds.X + insetX,
+            bounds.Y + topInset,
+            Math.Max(1, bounds.Width - insetX * 2),
+            Math.Max(1, bounds.Height - topInset));
     }
 
     // Draws the scrollable overhead grid and the player's current row.
@@ -1720,7 +1881,7 @@ public partial class Game1
         };
     }
 
-    // Draws a late side-view meteor tell so top-view scouting matters.
+    // Draws a readable side-view meteor warning and a diagonal incoming meteor.
     private void DrawMeteorFrontTile(Tile tile, float x, float scale, float groundY)
     {
         float distanceToRunner = x - RunnerX;
@@ -1730,8 +1891,9 @@ public partial class Game1
         }
 
         float revealProgress = MathHelper.Clamp(1f - MathF.Max(0f, distanceToRunner) / MeteorFrontRevealDistance, 0f, 1f);
+        float fallProgress = MathHelper.Clamp(MathF.Pow(revealProgress, 0.62f), 0f, 1f);
         Rectangle target = GetMeteorFrontTargetBounds(tile, x, scale, groundY);
-        DrawMeteorTarget(target, revealProgress);
+        DrawMeteorTarget(target, revealProgress, true);
 
         int meteorSize = Math.Max(24, (int)(78f * scale));
         float impactX = target.Center.X - meteorSize / 2f;
@@ -1739,8 +1901,8 @@ public partial class Game1
         float startX = impactX + MeteorDiagonalStartOffsetX * scale;
         float startY = impactY - MeteorDiagonalStartOffsetY * scale;
         Vector2 meteorPosition = new(
-            MathHelper.Lerp(startX, impactX, revealProgress),
-            MathHelper.Lerp(startY, impactY, revealProgress));
+            MathHelper.Lerp(startX, impactX, fallProgress),
+            MathHelper.Lerp(startY, impactY, fallProgress));
         Rectangle meteorBounds = new((int)meteorPosition.X, (int)meteorPosition.Y, meteorSize, meteorSize);
 
         Vector2 meteorCenter = new(meteorBounds.Center.X, meteorBounds.Center.Y);
@@ -1752,25 +1914,33 @@ public partial class Game1
         DrawTextureInBounds(_meteorTexture, meteorBounds, Color.White);
     }
 
-    // Returns the ground target bounds used for both meteor drawing and collision.
+    // Returns the ground target bounds used by both meteor warning art and collision.
     private static Rectangle GetMeteorFrontTargetBounds(Tile tile, float x, float scale, float groundY)
     {
-        int targetSize = Math.Max(28, (int)(88f * scale));
-        int targetX = (int)(x + (TileVisualWidth(tile) * scale - targetSize) / 2f);
-        return new Rectangle(targetX, (int)(groundY - targetSize), targetSize, targetSize);
+        int targetWidth = Math.Max(44, (int)(116f * scale));
+        int targetHeight = Math.Max(14, (int)(34f * scale));
+        int targetX = (int)(x + (TileVisualWidth(tile) * scale - targetWidth) / 2f);
+        int targetY = (int)(groundY - targetHeight * 0.75f);
+        return new Rectangle(targetX, targetY, targetWidth, targetHeight);
     }
 
-    // Marks meteor impact tiles clearly in top view before the meteor is visible in side view.
+    // Draws a full-strength meteor warning for top-view scouting.
     private void DrawMeteorTarget(Rectangle bounds)
     {
         DrawMeteorTarget(bounds, 1f);
     }
 
-    // Draws a circular red bullseye warning for meteor impact zones.
+    // Draws a round high-contrast bullseye warning by default.
     private void DrawMeteorTarget(Rectangle bounds, float intensity)
     {
+        DrawMeteorTarget(bounds, intensity, false);
+    }
+
+    // Draws a high-contrast bullseye, optionally using flattened lane-shaped bounds.
+    private void DrawMeteorTarget(Rectangle bounds, float intensity, bool useBoundsShape)
+    {
         float alpha = MathHelper.Clamp(intensity, 0.35f, 1f);
-        Rectangle circleBounds = SquareInside(bounds);
+        Rectangle circleBounds = useBoundsShape ? bounds : SquareInside(bounds);
         DrawFilledEllipse(circleBounds.InflateBy(4), Color.Black * 0.26f);
         DrawEllipseRing(circleBounds.InflateBy(3), Math.Max(2, circleBounds.Width / 16), Color.White * (0.40f + 0.22f * alpha));
         DrawFilledEllipse(circleBounds, Color.Red * (0.16f + 0.16f * alpha));
